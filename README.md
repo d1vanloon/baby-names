@@ -68,6 +68,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 - **PeerJS**: Real-time WebRTC peer-to-peer connections for partner syncing
 - **LocalStorage**: Persistent storage for likes and settings
 - **Responsive Design**: Works on desktop and mobile devices
+- **Vitest**: Unit testing framework with jsdom for DOM testing
 
 ## Browser Requirements
 
@@ -87,6 +88,11 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ├── matchAnimation.js   # Match celebration animations
 ├── storage.js          # LocalStorage utilities
 ├── styles.css          # Application styles
+├── test/               # Unit tests
+│   ├── storage.test.js
+│   ├── nameData.test.js
+│   ├── peerSession.test.js
+│   └── utils.test.js
 └── data/               # Baby name data files (yobYYYY.txt)
     ├── yob1880.txt
     ├── yob1881.txt
@@ -96,6 +102,27 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ## License
 
 This project is open source. Feel free to use and modify as needed.
+
+## Testing
+
+The project includes unit tests using [Vitest](https://vitest.dev/) with jsdom for DOM testing.
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+Tests cover:
+- LocalStorage operations (`test/storage.test.js`)
+- Name queue management (`test/nameData.test.js`)
+- Peer connection pure functions (`test/peerSession.test.js`)
+- Utility functions (`test/utils.test.js`)
 
 ## Credits
 
