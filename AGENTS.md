@@ -83,6 +83,8 @@ Use JSDoc for all exported functions:
  */
 ```
 
+Update the README if needed when making changes to the project.
+
 ### Error Handling
 
 - Use `try/catch` for async operations
