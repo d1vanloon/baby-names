@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="A fun, Tinder-style baby name picker. Swipe right to like names, connect with your partner to find matches!">
+    <title>Baby Names Picker</title>
+    <link rel="preconnect"
+          href="https://fonts.googleapis.com">
+    <link rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet"
+          href="styles.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Setup Screen -->
+        <div id="setup-screen"
+             class="screen">
+            <div class="setup-container glass-card">
+                <h1 class="logo">👶 Baby Names</h1>
+                <p class="tagline">Find the perfect name together</p>
+                <div class="setup-form">
+                    <label for="last-name-input">What's your last name?</label>
+                    <input type="text"
+                           id="last-name-input"
+                           placeholder="Enter last name..."
+                           autocomplete="off">
+                    <button id="start-btn"
+                            class="btn btn-primary">Start Swiping</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Swipe Screen -->
+        <div id="swipe-screen"
+             class="screen hidden">
+            <header class="header">
+                <h1 class="header-logo">👶</h1>
+                <div class="header-actions">
+                    <button id="likes-btn"
+                            class="btn btn-icon"
+                            title="View Likes">
+                        <span class="icon">❤️</span>
+                        <span id="likes-count"
+                              class="badge">0</span>
+                    </button>
+                    <button id="session-btn"
+                            class="btn btn-icon"
+                            title="Connect with Partner">
+                        <span class="icon">🔗</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="swipe-container">
+                <div id="card-stack"
+                     class="card-stack">
+                    <!-- Cards will be inserted here -->
+                </div>
+                <div id="empty-state"
+                     class="empty-state hidden">
+                    <p>🎉 You've seen all the names!</p>
+                    <button id="reset-names-btn"
+                            class="btn btn-secondary">Start Over</button>
+                </div>
+            </div>
+
+            <div class="swipe-actions">
+                <button id="skip-btn"
+                        class="btn btn-action btn-skip"
+                        title="Skip">
+                    <span>✕</span>
+                </button>
+                <button id="like-btn"
+                        class="btn btn-action btn-like"
+                        title="Like">
+                    <span>♥</span>
+                </button>
+            </div>
+
+            <!-- Connection status bar -->
+            <div id="connection-bar"
+                 class="connection-bar hidden">
+                <span id="connection-status">🔗 Connected with partner</span>
+                <button id="matches-btn"
+                        class="btn btn-small">Matches <span id="matches-count">0</span></button>
+                <button id="disconnect-btn"
+                        class="btn btn-small btn-danger">Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Likes Screen -->
+        <div id="likes-screen"
+             class="screen hidden">
+            <header class="header">
+                <button id="back-from-likes-btn"
+                        class="btn btn-icon">
+                    <span class="icon">←</span>
+                </button>
+                <h2>Your Liked Names</h2>
+                <div class="header-spacer"></div>
+            </header>
+            <div id="likes-list"
+                 class="names-list">
+                <!-- Liked names will be inserted here -->
+            </div>
+            <div id="likes-empty"
+                 class="empty-list hidden">
+                <p>No liked names yet!</p>
+                <p class="muted">Swipe right on names you love</p>
+            </div>
+        </div>
+
+        <!-- Matches Screen -->
+        <div id="matches-screen"
+             class="screen hidden">
+            <header class="header">
+                <button id="back-from-matches-btn"
+                        class="btn btn-icon">
+                    <span class="icon">←</span>
+                </button>
+                <h2>Your Matches 💕</h2>
+                <div class="header-spacer"></div>
+            </header>
+            <div id="matches-list"
+                 class="names-list">
+                <!-- Matched names will be inserted here -->
+            </div>
+            <div id="matches-empty"
+                 class="empty-list hidden">
+                <p>No matches yet!</p>
+                <p class="muted">Keep swiping to find names you both love</p>
+            </div>
+        </div>
+
+        <!-- Session Modal -->
+        <div id="session-modal"
+             class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content glass-card">
+                <button id="close-modal-btn"
+                        class="btn btn-icon modal-close">✕</button>
+                <h2>Partner Connection</h2>
+
+                <!-- Status indicator -->
+                <div id="session-status"
+                     class="session-status">
+                    <span id="session-status-icon"
+                          class="status-icon">⏳</span>
+                    <span id="session-status-text">Initializing...</span>
+                </div>
+
+                <!-- Connected state -->
+                <div id="session-connected"
+                     class="session-section hidden">
+                    <p class="success-text">✅ Connected to partner!</p>
+                    <p class="muted">Your likes are being synced in real-time.</p>
+                    <button id="modal-disconnect-btn"
+                            class="btn btn-danger">Disconnect</button>
+                </div>
+
+                <!-- Disconnected state - show link -->
+                <div id="session-disconnected"
+                     class="session-section">
+                    <p>Share this link with your partner:</p>
+                    <div class="link-box">
+                        <input type="text"
+                               id="session-link"
+                               readonly>
+                        <button id="copy-link-btn"
+                                class="btn btn-small">Copy</button>
+                    </div>
+                    <p class="muted"
+                       id="session-waiting-text">Waiting for partner to connect...</p>
+                </div>
+
+                <div id="session-help"
+                     class="session-section">
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+                    <p>Have a link from your partner?</p>
+                    <p class="muted">Just open it in your browser!</p>
+                </div>
+
+                <!-- Advanced Settings -->
+                <details class="advanced-settings">
+                    <summary>Advanced Settings</summary>
+                    <div class="settings-content">
+                        <label for="peer-server-host">PeerJS Server Host</label>
+                        <input type="text"
+                               id="peer-server-host"
+                               placeholder="0.peerjs.com">
+                        <label for="peer-server-port">Port</label>
+                        <input type="number"
+                               id="peer-server-port"
+                               placeholder="443">
+                        <button id="save-peer-settings-btn"
+                                class="btn btn-secondary">Save Settings</button>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Match Animation Overlay -->
+        <div id="match-overlay"
+             class="match-overlay hidden">
+            <div class="match-content">
+                <div class="match-hearts">💕</div>
+                <h2>It's a Match!</h2>
+                <p id="match-name"
+                   class="match-name">Baby Name</p>
+                <p class="muted">You both love this name!</p>
+            </div>
+            <div id="confetti-container"
+                 class="confetti-container"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script type="module"
+            src="app.js"></script>
+</body>
+
+</html>
