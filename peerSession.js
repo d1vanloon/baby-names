@@ -40,6 +40,8 @@ const RECONNECT_CONFIG = {
     jitter: 0.5
 };
 
+const PEER_DEBUG_LEVEL = 2;
+
 const ERROR_GUIDANCE = {
     'network': 'Cannot reach signaling server - check internet connection',
     'peer-unavailable': 'Partner is offline or their link expired',
@@ -62,7 +64,7 @@ let isReconnecting = false;
 function logError(err, context) {
     const { type, message } = err;
     const guidance = ERROR_GUIDANCE[type] || 'Unknown error type';
-    
+
     console.error('[PeerJS Error]', {
         context,
         errorType: type,
@@ -72,7 +74,7 @@ function logError(err, context) {
         partnerId: getPartnerId(),
         timestamp: new Date().toISOString()
     });
-    
+
     if (guidance) {
         console.error(`[PeerJS] Hint: ${guidance}`);
     }
@@ -141,11 +143,12 @@ export function initPeerSession(callbacks) {
  */
 function getPeerConfig() {
     const config = getPeerServerConfig();
+    const isHttpsPage = window.location.protocol === 'https:';
     return {
         host: config.host,
         port: config.port,
-        secure: config.port === 443,
-        debug: 0
+        secure: isHttpsPage || config.port === 443,
+        debug: PEER_DEBUG_LEVEL
     };
 }
 
@@ -163,51 +166,74 @@ async function ensurePeer() {
     return new Promise((resolve, reject) => {
         const config = getPeerConfig();
         const existingId = getPeerId();
+        let settled = false;
 
-        // Try to use existing ID if available
-        peer = existingId
-            ? new Peer(existingId, config)
-            : new Peer(config);
-
-        peer.on('open', (id) => {
-            console.log('Peer connected with ID:', id);
-            setPeerId(id);
-            setStatus(ConnectionStatus.WAITING, 'Ready for connection');
-            resolve(peer);
-        });
-
-        peer.on('error', (err) => {
-            logError(err, 'Peer initialization');
-            
-            if (err.type === 'unavailable-id') {
-                console.log('[PeerJS] Retrying with new peer ID...');
-                peer = new Peer(config);
-                peer.on('open', (id) => {
-                    setPeerId(id);
-                    setStatus(ConnectionStatus.WAITING, 'Ready for connection');
-                    resolve(peer);
-                });
-            } else {
-                setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
-                reject(err);
+        function safeResolve(value) {
+            if (!settled) {
+                settled = true;
+                resolve(value);
             }
-        });
+        }
 
-        peer.on('connection', (conn) => {
-            handleIncomingConnection(conn);
-        });
+        function safeReject(error) {
+            if (!settled) {
+                settled = true;
+                reject(error);
+            }
+        }
 
-        peer.on('disconnected', () => {
-            console.log('[PeerJS] Disconnected from signaling server', {
-                peerId: peer ? peer.id : null,
-                timestamp: new Date().toISOString()
+        function createPeer(preferredId = null) {
+            return preferredId
+                ? new Peer(preferredId, config)
+                : new Peer(config);
+        }
+
+        function attachPeerHandlers(activePeer) {
+            activePeer.on('open', (id) => {
+                console.log('Peer connected with ID:', id);
+                setPeerId(id);
+                setStatus(ConnectionStatus.WAITING, 'Ready for connection');
+                safeResolve(activePeer);
             });
-            // Try to reconnect to the signaling server
-            if (peer && !peer.destroyed) {
-                setStatus(ConnectionStatus.RECONNECTING, 'Reconnecting to server...');
-                peer.reconnect();
-            }
-        });
+
+            activePeer.on('error', (err) => {
+                logError(err, 'Peer initialization');
+
+                if (err.type === 'unavailable-id') {
+                    console.log('[PeerJS] Retrying with new peer ID...');
+
+                    if (!activePeer.destroyed) {
+                        activePeer.destroy();
+                    }
+
+                    peer = createPeer();
+                    attachPeerHandlers(peer);
+                    return;
+                }
+
+                setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
+                safeReject(err);
+            });
+
+            activePeer.on('connection', (conn) => {
+                handleIncomingConnection(conn);
+            });
+
+            activePeer.on('disconnected', () => {
+                console.log('[PeerJS] Disconnected from signaling server', {
+                    peerId: activePeer.id,
+                    timestamp: new Date().toISOString()
+                });
+
+                if (!activePeer.destroyed) {
+                    setStatus(ConnectionStatus.RECONNECTING, 'Reconnecting to server...');
+                    activePeer.reconnect();
+                }
+            });
+        }
+
+        peer = createPeer(existingId);
+        attachPeerHandlers(peer);
     });
 }
 
