@@ -33,6 +33,76 @@ export const ConnectionStatus = {
 
 let currentStatus = ConnectionStatus.DISCONNECTED;
 
+const RECONNECT_CONFIG = {
+    maxAttempts: 5,
+    baseDelay: 2000,
+    maxDelay: 30000,
+    jitter: 0.5
+};
+
+const ERROR_GUIDANCE = {
+    'network': 'Cannot reach signaling server - check internet connection',
+    'peer-unavailable': 'Partner is offline or their link expired',
+    'disconnected': 'Lost connection to signaling server',
+    'unavailable-id': 'Your session expired - getting new one',
+    'browser-incompatible': 'Browser lacks required WebRTC features',
+    'ssl-unavailable': 'Secure connection not supported by server',
+    'peer-error': 'WebRTC connection failed - NAT or firewall blocking'
+};
+
+let reconnectAttempt = 0;
+let reconnectTimer = null;
+
+/**
+ * Log detailed error information
+ * @param {Error} err - PeerJS error object
+ * @param {string} context - Context description
+ */
+function logError(err, context) {
+    const { type, message } = err;
+    const guidance = ERROR_GUIDANCE[type] || 'Unknown error type';
+    
+    console.error('[PeerJS Error]', {
+        context,
+        errorType: type,
+        message,
+        guidance,
+        peerId: peer ? peer.id : null,
+        partnerId: getPartnerId(),
+        timestamp: new Date().toISOString()
+    });
+    
+    if (guidance) {
+        console.error(`[PeerJS] Hint: ${guidance}`);
+    }
+}
+
+/**
+ * Get user-friendly error message for display
+ * @param {Error} err - PeerJS error object
+ * @returns {string} User-friendly message
+ */
+function getErrorMessage(err) {
+    const { type, message } = err;
+    const guidance = ERROR_GUIDANCE[type];
+    if (guidance) {
+        return guidance;
+    }
+    return message || 'Connection error';
+}
+
+/**
+ * Calculate delay with exponential backoff and jitter
+ * @param {number} attempt - Current attempt number (0-indexed)
+ * @returns {number} Delay in milliseconds
+ */
+function calculateBackoffDelay(attempt) {
+    const exponentialDelay = RECONNECT_CONFIG.baseDelay * Math.pow(2, attempt);
+    const jitter = exponentialDelay * RECONNECT_CONFIG.jitter * Math.random();
+    const delay = Math.min(exponentialDelay + jitter, RECONNECT_CONFIG.maxDelay);
+    return Math.floor(delay);
+}
+
 /**
  * Update and broadcast status
  * @param {string} status
@@ -106,9 +176,10 @@ async function ensurePeer() {
         });
 
         peer.on('error', (err) => {
-            console.error('Peer error:', err);
-            // If ID is taken, create new peer without ID
+            logError(err, 'Peer initialization');
+            
             if (err.type === 'unavailable-id') {
+                console.log('[PeerJS] Retrying with new peer ID...');
                 peer = new Peer(config);
                 peer.on('open', (id) => {
                     setPeerId(id);
@@ -116,7 +187,7 @@ async function ensurePeer() {
                     resolve(peer);
                 });
             } else {
-                setStatus(ConnectionStatus.ERROR, err.message || 'Connection error');
+                setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
                 reject(err);
             }
         });
@@ -126,7 +197,10 @@ async function ensurePeer() {
         });
 
         peer.on('disconnected', () => {
-            console.log('Peer disconnected from server');
+            console.log('[PeerJS] Disconnected from signaling server', {
+                peerId: peer ? peer.id : null,
+                timestamp: new Date().toISOString()
+            });
             // Try to reconnect to the signaling server
             if (peer && !peer.destroyed) {
                 setStatus(ConnectionStatus.RECONNECTING, 'Reconnecting to server...');
@@ -137,7 +211,84 @@ async function ensurePeer() {
 }
 
 /**
- * Try to reconnect to a previously connected partner
+ * Clear any pending reconnect timer
+ */
+function clearReconnectTimer() {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+}
+
+/**
+ * Attempt a single reconnection
+ * @returns {Promise<boolean>}
+ */
+async function attemptReconnect() {
+    const partnerId = getPartnerId();
+    if (!partnerId) {
+        return false;
+    }
+
+    try {
+        await connectToPartner(partnerId);
+        return true;
+    } catch (err) {
+        logError(err, 'Reconnect attempt');
+        return false;
+    }
+}
+
+/**
+ * Start reconnection attempts with exponential backoff
+ * @returns {Promise<boolean>}
+ */
+export async function startReconnecting() {
+    const partnerId = getPartnerId();
+    if (!partnerId) {
+        return false;
+    }
+
+    clearReconnectTimer();
+    reconnectAttempt = 0;
+
+    return new Promise((resolve) => {
+        const tryOnce = async () => {
+            reconnectAttempt++;
+            const attemptNum = reconnectAttempt;
+            setStatus(
+                ConnectionStatus.RECONNECTING,
+                `Retrying connection... (${attemptNum}/${RECONNECT_CONFIG.maxAttempts})`
+            );
+
+            const success = await attemptReconnect();
+
+            if (success) {
+                clearReconnectTimer();
+                reconnectAttempt = 0;
+                resolve(true);
+                return;
+            }
+
+            if (reconnectAttempt >= RECONNECT_CONFIG.maxAttempts) {
+                clearReconnectTimer();
+                reconnectAttempt = 0;
+                setStatus(ConnectionStatus.WAITING, 'Partner unavailable');
+                resolve(false);
+                return;
+            }
+
+            const delay = calculateBackoffDelay(reconnectAttempt);
+            console.log(`Reconnect attempt ${attemptNum} failed. Retrying in ${Math.round(delay / 1000)}s...`);
+            reconnectTimer = setTimeout(tryOnce, delay);
+        };
+
+        tryOnce();
+    });
+}
+
+/**
+ * Try to reconnect to a previously connected partner (single attempt)
  * @returns {Promise<boolean>}
  */
 export async function tryReconnect() {
@@ -155,6 +306,14 @@ export async function tryReconnect() {
         setStatus(ConnectionStatus.WAITING, 'Partner not available');
         return false;
     }
+}
+
+/**
+ * Manually trigger reconnection with retry policy
+ * @returns {Promise<boolean>}
+ */
+export async function retryConnection() {
+    return startReconnecting();
 }
 
 /**
@@ -217,7 +376,13 @@ export async function connectToPartner(partnerId) {
 
         connection.on('open', () => {
             clearTimeout(timeout);
-            console.log('Connected to partner:', partnerId);
+            console.log('[PeerJS] Connection established', {
+                localPeer: peer.id,
+                remotePeer: partnerId,
+                connectionId: connection.connectionId,
+                reliable: connection.reliable,
+                timestamp: new Date().toISOString()
+            });
 
             // Store partner ID for reconnection
             setPartnerId(partnerId);
@@ -237,8 +402,8 @@ export async function connectToPartner(partnerId) {
 
         connection.on('error', (err) => {
             clearTimeout(timeout);
-            console.error('Connection error:', err);
-            setStatus(ConnectionStatus.ERROR, err.message || 'Connection failed');
+            logError(err, 'Connection (outgoing)');
+            setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
             reject(err);
         });
     });
@@ -257,7 +422,13 @@ function handleIncomingConnection(conn) {
     setStatus(ConnectionStatus.CONNECTING, 'Partner connecting...');
 
     conn.on('open', () => {
-        console.log('Partner connected:', conn.peer);
+        console.log('[PeerJS] Incoming connection accepted', {
+            localPeer: peer ? peer.id : null,
+            remotePeer: conn.peer,
+            connectionId: conn.connectionId,
+            reliable: conn.reliable,
+            timestamp: new Date().toISOString()
+        });
 
         // Store partner ID for reconnection
         setPartnerId(conn.peer);
@@ -284,7 +455,11 @@ function setupConnectionHandlers(conn) {
     });
 
     conn.on('close', () => {
-        console.log('Connection closed');
+        console.log('[PeerJS] Connection closed', {
+            remotePeer: conn.peer,
+            wasConnected: conn.open,
+            timestamp: new Date().toISOString()
+        });
         partnerLikes.clear();
         connection = null;
 
@@ -298,20 +473,22 @@ function setupConnectionHandlers(conn) {
             onMatchesUpdated([]);
         }
 
-        // Try to reconnect after a delay
+        // Try to reconnect after a delay using exponential backoff
         const partnerId = getPartnerId();
         if (partnerId) {
-            setTimeout(() => {
+            console.log('[PeerJS] Scheduling reconnect attempt...');
+            clearReconnectTimer();
+            reconnectTimer = setTimeout(() => {
                 if (!connection && getPartnerId()) {
-                    tryReconnect();
+                    startReconnecting();
                 }
             }, 3000);
         }
     });
 
     conn.on('error', (err) => {
-        console.error('Connection error:', err);
-        setStatus(ConnectionStatus.ERROR, err.message || 'Connection error');
+        logError(err, 'Connection (incoming)');
+        setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
     });
 }
 
@@ -429,6 +606,8 @@ export function isConnected() {
 export function disconnect() {
     // Clear partner ID to prevent auto-reconnect
     clearPartnerId();
+    clearReconnectTimer();
+    reconnectAttempt = 0;
 
     if (connection) {
         connection.close();
@@ -460,8 +639,8 @@ export function getCurrentPeerId() {
 export async function initializeAndReconnect() {
     await ensurePeer();
 
-    // Try to reconnect to stored partner
+    // Try to reconnect to stored partner with retry policy
     if (hasStoredPartner()) {
-        await tryReconnect();
+        await startReconnecting();
     }
 }
