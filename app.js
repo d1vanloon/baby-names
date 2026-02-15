@@ -8,7 +8,10 @@ import {
     getLikes,
     addLike,
     getPeerServerConfig,
-    setPeerServerConfig
+    setPeerServerConfig,
+    getPendingPartnerLastName,
+    setPendingPartnerLastName,
+    clearPendingPartnerLastName
 } from './storage.js';
 
 import {
@@ -67,6 +70,8 @@ const elements = {
     // Setup
     lastNameInput: document.getElementById('last-name-input'),
     startBtn: document.getElementById('start-btn'),
+    setupForm: document.querySelector('.setup-form'),
+    joiningMessage: document.querySelector('.joining-message'),
 
     // Swipe
     cardStack: document.getElementById('card-stack'),
@@ -124,6 +129,7 @@ const elements = {
 // ========================================
 let currentLastName = '';
 let currentMatches = [];
+let isJoiningFromLink = false;
 
 // ========================================
 // Screen Management
@@ -287,6 +293,18 @@ function handleStatusChange(status, message) {
     }
 }
 
+function handlePartnerInfo(info) {
+    if (info.lastName && isJoiningFromLink) {
+        // Auto-set the last name and proceed
+        setLastName(info.lastName);
+        currentLastName = info.lastName;
+        clearPendingPartnerLastName();
+        showScreen('swipe');
+        renderCardStack();
+        updateLikesCount();
+    }
+}
+
 function updateSessionModalState(connected) {
     if (connected) {
         elements.sessionConnected.classList.remove('hidden');
@@ -446,7 +464,8 @@ async function init() {
         onMatchFound: handleMatchFound,
         onConnectionChange: handleConnectionChange,
         onMatchesUpdated: handleMatchesUpdated,
-        onStatusChange: handleStatusChange
+        onStatusChange: handleStatusChange,
+        onPartnerInfo: handlePartnerInfo
     });
 
     initMatchAnimation({
@@ -471,6 +490,7 @@ async function init() {
 
     // Check for join link
     const joinId = getJoinIdFromUrl();
+    isJoiningFromLink = !!joinId;
 
     if (currentLastName) {
         // Returning user
@@ -495,22 +515,47 @@ async function init() {
                 console.error('Auto-reconnect failed:', err);
             }
         }
-    } else {
-        // New user
+    } else if (joinId) {
+        // New user joining via link - hide last name input, show connecting state
         showScreen('setup');
+        elements.setupForm.classList.add('joining-mode');
+        elements.joiningMessage.classList.remove('hidden');
+        elements.startBtn.textContent = 'Connecting...';
+        elements.startBtn.disabled = true;
 
-        // Store join ID for after setup
-        if (joinId) {
-            // Will handle join after setup
-            elements.startBtn.addEventListener('click', async () => {
-                clearJoinParam();
-                try {
-                    await connectToPartner(joinId);
-                } catch (err) {
-                    console.error('Failed to connect to partner:', err);
-                }
-            }, { once: true });
+        // Check if we already have a pending last name (from a previous attempt)
+        const pendingLastName = getPendingPartnerLastName();
+        if (pendingLastName) {
+            setLastName(pendingLastName);
+            currentLastName = pendingLastName;
+            clearPendingPartnerLastName();
+            showScreen('swipe');
+            renderCardStack();
+            updateLikesCount();
+            clearJoinParam();
+            try {
+                await connectToPartner(joinId);
+            } catch (err) {
+                console.error('Failed to connect to partner:', err);
+            }
+        } else {
+            // Connect to partner and wait for handshake with last name
+            clearJoinParam();
+            try {
+                await connectToPartner(joinId);
+            } catch (err) {
+                console.error('Failed to connect to partner:', err);
+                // Allow manual entry as fallback
+                elements.setupForm.classList.remove('joining-mode');
+                elements.joiningMessage.classList.add('hidden');
+                elements.startBtn.textContent = 'Start Swiping';
+                elements.startBtn.disabled = false;
+                isJoiningFromLink = false;
+            }
         }
+    } else {
+        // New user (hosting)
+        showScreen('setup');
     }
 }
 

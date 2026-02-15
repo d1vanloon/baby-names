@@ -357,6 +357,33 @@ body {
     color: var(--color-text-muted);
 }
 
+/* Joining mode - hide last name input, show message instead */
+.setup-form.joining-mode label,
+.setup-form.joining-mode input {
+    display: none;
+}
+
+.setup-form .joining-message {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+    text-align: center;
+    line-height: 1.6;
+    margin: var(--spacing-md) 0;
+}
+
+.setup-form .joining-message.hidden {
+    display: none;
+}
+
+.setup-form.joining-mode .joining-message {
+    display: block;
+}
+
+.setup-form.joining-mode button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* ========================================
    Header
    ======================================== */

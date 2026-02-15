@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
     PEER_ID: 'babyNames_peerId',
     PARTNER_ID: 'babyNames_partnerId',
     PEER_SERVER_HOST: 'babyNames_peerServerHost',
-    PEER_SERVER_PORT: 'babyNames_peerServerPort'
+    PEER_SERVER_PORT: 'babyNames_peerServerPort',
+    PENDING_PARTNER_LAST_NAME: 'babyNames_pendingPartnerLastName'
 };
 
 /**
@@ -155,4 +156,27 @@ export function setPartnerId(partnerId) {
  */
 export function clearPartnerId() {
     localStorage.removeItem(STORAGE_KEYS.PARTNER_ID);
+}
+
+/**
+ * Get pending last name from partner (for joining users)
+ * @returns {string|null}
+ */
+export function getPendingPartnerLastName() {
+    return localStorage.getItem(STORAGE_KEYS.PENDING_PARTNER_LAST_NAME);
+}
+
+/**
+ * Set pending last name from partner
+ * @param {string} lastName
+ */
+export function setPendingPartnerLastName(lastName) {
+    localStorage.setItem(STORAGE_KEYS.PENDING_PARTNER_LAST_NAME, lastName);
+}
+
+/**
+ * Clear pending partner last name
+ */
+export function clearPendingPartnerLastName() {
+    localStorage.removeItem(STORAGE_KEYS.PENDING_PARTNER_LAST_NAME);
 }

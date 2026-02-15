@@ -4,12 +4,14 @@
 
 import {
     getLikes,
+    getLastName,
     getPeerServerConfig,
     setPeerId,
     getPeerId,
     getPartnerId,
     setPartnerId,
-    clearPartnerId
+    clearPartnerId,
+    setPendingPartnerLastName
 } from './storage.js';
 
 let peer = null;
@@ -19,6 +21,8 @@ let onMatchFound = null;
 let onConnectionChange = null;
 let onMatchesUpdated = null;
 let onStatusChange = null;
+let onPartnerInfo = null;
+let isHost = false;
 
 // Connection status constants
 export const ConnectionStatus = {
@@ -62,6 +66,7 @@ export function initPeerSession(callbacks) {
     onConnectionChange = callbacks.onConnectionChange;
     onMatchesUpdated = callbacks.onMatchesUpdated;
     onStatusChange = callbacks.onStatusChange;
+    onPartnerInfo = callbacks.onPartnerInfo;
 }
 
 /**
@@ -204,6 +209,9 @@ export async function connectToPartner(partnerId) {
         connection.close();
     }
 
+    // We're joining, not hosting
+    isHost = false;
+
     setStatus(ConnectionStatus.CONNECTING, 'Connecting to partner...');
     await ensurePeer();
 
@@ -253,6 +261,8 @@ function handleIncomingConnection(conn) {
         connection.close();
     }
 
+    // We're hosting
+    isHost = true;
     connection = conn;
     setStatus(ConnectionStatus.CONNECTING, 'Partner connecting...');
 
@@ -263,6 +273,15 @@ function handleIncomingConnection(conn) {
         setPartnerId(conn.peer);
 
         setupConnectionHandlers(conn);
+
+        // Send handshake with our last name
+        const lastName = getLastName();
+        if (lastName) {
+            connection.send({
+                type: 'handshake',
+                lastName: lastName
+            });
+        }
 
         // Send our likes
         sendLikes();
@@ -320,7 +339,15 @@ function setupConnectionHandlers(conn) {
  * @param {Object} data
  */
 function handleMessage(data) {
-    if (data.type === 'likes') {
+    if (data.type === 'handshake') {
+        // Partner is sharing their info (last name)
+        if (data.lastName) {
+            setPendingPartnerLastName(data.lastName);
+            if (onPartnerInfo) {
+                onPartnerInfo({ lastName: data.lastName });
+            }
+        }
+    } else if (data.type === 'likes') {
         // Full likes sync
         partnerLikes = new Set(data.likes);
         updateMatches();
@@ -435,6 +462,7 @@ export function disconnect() {
         connection = null;
     }
     partnerLikes.clear();
+    isHost = false;
 
     setStatus(ConnectionStatus.DISCONNECTED, 'Disconnected');
     if (onConnectionChange) {
