@@ -17,12 +17,21 @@ let nameQueue = [];
 
 /**
  * Load and parse name data from CSV files
+ * @param {Function} onProgress - Callback with progress percentage (0-100)
  * @returns {Promise<void>}
  */
-export async function loadNameData() {
+export async function loadNameData(onProgress) {
     const nameMap = new Map();
+    const totalYears = YEARS_TO_LOAD.length;
 
-    for (const year of YEARS_TO_LOAD) {
+    for (let i = 0; i < YEARS_TO_LOAD.length; i++) {
+        const year = YEARS_TO_LOAD[i];
+        const progress = Math.round(((i + 1) / totalYears) * 100);
+        
+        if (onProgress) {
+            onProgress(progress);
+        }
+
         try {
             const response = await fetch(`data/yob${year}.txt`);
             if (!response.ok) continue;

@@ -21,9 +21,22 @@
 
 <body>
     <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen"
+             class="screen">
+            <div class="loading-container">
+                <div class="loading-spinner">👶</div>
+                <h2 class="loading-text">Loading baby names...</h2>
+                <div class="progress-bar-container">
+                    <div id="progress-bar"
+                         class="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Setup Screen -->
         <div id="setup-screen"
-             class="screen">
+             class="screen hidden">
             <div class="setup-container glass-card">
                 <h1 class="logo">👶 Baby Names</h1>
                 <p class="tagline">Find the perfect name together</p>

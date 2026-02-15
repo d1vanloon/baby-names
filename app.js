@@ -55,10 +55,14 @@ import {
 // ========================================
 const elements = {
     // Screens
+    loadingScreen: document.getElementById('loading-screen'),
     setupScreen: document.getElementById('setup-screen'),
     swipeScreen: document.getElementById('swipe-screen'),
     likesScreen: document.getElementById('likes-screen'),
     matchesScreen: document.getElementById('matches-screen'),
+
+    // Loading
+    progressBar: document.getElementById('progress-bar'),
 
     // Setup
     lastNameInput: document.getElementById('last-name-input'),
@@ -125,7 +129,7 @@ let currentMatches = [];
 // Screen Management
 // ========================================
 function showScreen(screenName) {
-    const screens = ['setup', 'swipe', 'likes', 'matches'];
+    const screens = ['loading', 'setup', 'swipe', 'likes', 'matches'];
     screens.forEach(name => {
         const el = elements[`${name}Screen`];
         if (el) {
@@ -454,8 +458,13 @@ async function init() {
     // Setup event handlers
     setupEventHandlers();
 
-    // Load name data
-    await loadNameData();
+    // Show loading screen
+    showScreen('loading');
+
+    // Load name data with progress callback
+    await loadNameData((progress) => {
+        elements.progressBar.style.width = `${progress}%`;
+    });
 
     // Check for existing last name
     currentLastName = getLastName();
