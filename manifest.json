@@ -1,0 +1,36 @@
+{
+  "name": "Baby Names Picker",
+  "short_name": "Baby Names",
+  "description": "A fun, Tinder-style baby name picker. Swipe right to like names, connect with your partner to find matches!",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1a",
+  "theme_color": "#ff4d6d",
+  "categories": ["lifestyle", "family", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icons/icon-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icons/maskable-icon-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "scope": "/",
+  "lang": "en"
+}

@@ -1,0 +1,16 @@
+<!-- Baby emoji icon for PWA - 192x192 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <!-- Background gradient matching app theme -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <rect width="192" height="192" rx="42" ry="42" fill="url(#bg)"/>
+  
+  <!-- Baby emoji 👶 -->
+  <text x="96" y="132" font-size="110" text-anchor="middle" font-family="Arial, sans-serif">👶</text>
+</svg>

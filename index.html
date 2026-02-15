@@ -7,6 +7,23 @@
           content="width=device-width, initial-scale=1.0">
     <meta name="description"
           content="A fun, Tinder-style baby name picker. Swipe right to like names, connect with your partner to find matches!">
+    <meta name="theme-color"
+          content="#ff4d6d">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest"
+          href="manifest.json">
+
+    <!-- Apple Touch Icon and PWA Support -->
+    <link rel="apple-touch-icon"
+          href="icons/apple-touch-icon.svg">
+    <meta name="mobile-web-app-capable"
+          content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent">
+    <meta name="apple-mobile-web-app-title"
+          content="Baby Names">
+
     <title>Baby Names Picker</title>
     <link rel="preconnect"
           href="https://fonts.googleapis.com">
@@ -241,6 +258,33 @@
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script type="module"
             src="app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('[PWA] Service Worker registered successfully:', registration.scope);
+
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[PWA] New version available! Refresh to update.');
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        } else {
+            console.log('[PWA] Service Worker not supported');
+        }
+    </script>
 </body>
 
 </html>
