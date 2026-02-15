@@ -20,7 +20,21 @@ Then open `http://localhost:8000` in browser.
 
 ### Testing
 
-No test framework is configured. Add tests by creating a `test/` directory and choosing a framework (Jest, Vitest, etc.).
+Tests use [Vitest](https://vitest.dev/) framework with jsdom for DOM testing.
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+Tests are located in the `test/` directory:
+- `test/storage.test.js` - LocalStorage operations
+- `test/nameData.test.js` - Name queue management
+- `test/peerSession.test.js` - Peer connection pure functions
+- `test/utils.test.js` - Utility functions (escapeHtml)
 
 ### Linting/Formatting
 
