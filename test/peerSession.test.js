@@ -92,4 +92,37 @@ describe('peerSession.js - pure functions', () => {
             expect(getCurrentPeerId()).toBeNull();
         });
     });
+
+    describe('disconnect', () => {
+        it('should set status to disconnected', () => {
+            disconnect();
+            expect(getConnectionStatus()).toBe(ConnectionStatus.DISCONNECTED);
+        });
+    });
+
+    describe('notify functions', () => {
+        it('should not throw when notifying without connection', () => {
+            const { notifyLike, notifyUnlike } = require('../peerSession.js');
+            expect(() => notifyLike('Emma')).not.toThrow();
+            expect(() => notifyUnlike('Emma')).not.toThrow();
+        });
+    });
+
+    describe('URL Helpers', () => {
+        it('should get join ID from URL', () => {
+            delete window.location;
+            window.location = new URL('http://localhost?join=partner-123');
+            
+            const { getJoinIdFromUrl } = require('../peerSession.js');
+            expect(getJoinIdFromUrl()).toBe('partner-123');
+        });
+
+        it('should return null when no join ID in URL', () => {
+            delete window.location;
+            window.location = new URL('http://localhost');
+            
+            const { getJoinIdFromUrl } = require('../peerSession.js');
+            expect(getJoinIdFromUrl()).toBeNull();
+        });
+    });
 });
