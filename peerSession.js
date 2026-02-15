@@ -52,6 +52,7 @@ const ERROR_GUIDANCE = {
 
 let reconnectAttempt = 0;
 let reconnectTimer = null;
+let isReconnecting = false;
 
 /**
  * Log detailed error information
@@ -245,10 +246,11 @@ async function attemptReconnect() {
  */
 export async function startReconnecting() {
     const partnerId = getPartnerId();
-    if (!partnerId) {
+    if (!partnerId || isReconnecting) {
         return false;
     }
 
+    isReconnecting = true;
     clearReconnectTimer();
     reconnectAttempt = 0;
 
@@ -266,6 +268,7 @@ export async function startReconnecting() {
             if (success) {
                 clearReconnectTimer();
                 reconnectAttempt = 0;
+                isReconnecting = false;
                 resolve(true);
                 return;
             }
@@ -273,6 +276,7 @@ export async function startReconnecting() {
             if (reconnectAttempt >= RECONNECT_CONFIG.maxAttempts) {
                 clearReconnectTimer();
                 reconnectAttempt = 0;
+                isReconnecting = false;
                 setStatus(ConnectionStatus.WAITING, 'Partner unavailable');
                 resolve(false);
                 return;
@@ -608,6 +612,7 @@ export function disconnect() {
     clearPartnerId();
     clearReconnectTimer();
     reconnectAttempt = 0;
+    isReconnecting = false;
 
     if (connection) {
         connection.close();
