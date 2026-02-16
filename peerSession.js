@@ -1,37 +1,32 @@
 /**
- * Peer-to-peer session module using PeerJS
+ * Session module using ntfy.sh for pub/sub messaging
  */
 
 import {
     getLikes,
-    getPeerServerConfig,
-    setPeerId,
-    getPeerId,
-    getPartnerId,
-    setPartnerId,
-    clearPartnerId
+    getSessionTopic,
+    setSessionTopic,
+    clearSessionTopic,
+    getInstanceId
 } from './storage.js';
 
-let peer = null;
-let connection = null;
+const NTFY_HOST = 'ntfy.sh';
+
+let socket = null;
+let currentTopic = null;
 let partnerLikes = new Set();
 let onMatchFound = null;
 let onConnectionChange = null;
 let onMatchesUpdated = null;
 let onStatusChange = null;
+let hasPartnerJoined = false;
 
-// Connection status constants
-export const ConnectionStatus = {
-    DISCONNECTED: 'disconnected',
-    INITIALIZING: 'initializing',
-    WAITING: 'waiting',
-    CONNECTING: 'connecting',
-    CONNECTED: 'connected',
-    RECONNECTING: 'reconnecting',
-    ERROR: 'error'
-};
-
-let currentStatus = ConnectionStatus.DISCONNECTED;
+let reconnectAttempt = 0;
+let reconnectTimer = null;
+let isReconnecting = false;
+let connectPromise = null;
+let sessionGeneration = 0;
+const instanceId = getInstanceId();
 
 const RECONNECT_CONFIG = {
     maxAttempts: 5,
@@ -40,65 +35,45 @@ const RECONNECT_CONFIG = {
     jitter: 0.5
 };
 
-const PEER_DEBUG_LEVEL = 2;
-
-const ERROR_GUIDANCE = {
-    'network': 'Cannot reach signaling server - check internet connection',
-    'peer-unavailable': 'Partner is offline or their link expired',
-    'disconnected': 'Lost connection to signaling server',
-    'unavailable-id': 'Your session expired - getting new one',
-    'browser-incompatible': 'Browser lacks required WebRTC features',
-    'ssl-unavailable': 'Secure connection not supported by server',
-    'peer-error': 'WebRTC connection failed - NAT or firewall blocking'
+export const ConnectionStatus = {
+    DISCONNECTED: 'disconnected',
+    IN_ROOM: 'in_room',
+    CONNECTING: 'connecting',
+    CONNECTED: 'connected',
+    ERROR: 'error'
 };
 
-let reconnectAttempt = 0;
-let reconnectTimer = null;
-let isReconnecting = false;
+let currentStatus = ConnectionStatus.DISCONNECTED;
 
-/**
- * Log detailed error information
- * @param {Error} err - PeerJS error object
- * @param {string} context - Context description
- */
+const ERROR_GUIDANCE = {
+    'network': 'Cannot reach ntfy server - check internet connection',
+    'websocket': 'WebSocket connection failed',
+    'not_found': 'Room not found or expired',
+    'timeout': 'Connection timed out'
+};
+
+function generateTopic() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let topic = '';
+    for (let i = 0; i < 8; i++) {
+        topic += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return topic;
+}
+
 function logError(err, context) {
-    const { type, message } = err;
-    const guidance = ERROR_GUIDANCE[type] || 'Unknown error type';
-
-    console.error('[PeerJS Error]', {
+    console.error('[ntfy Session Error]', {
         context,
-        errorType: type,
-        message,
-        guidance,
-        peerId: peer ? peer.id : null,
-        partnerId: getPartnerId(),
+        error: err.message || err,
+        topic: currentTopic,
         timestamp: new Date().toISOString()
     });
-
-    if (guidance) {
-        console.error(`[PeerJS] Hint: ${guidance}`);
-    }
 }
 
-/**
- * Get user-friendly error message for display
- * @param {Error} err - PeerJS error object
- * @returns {string} User-friendly message
- */
 function getErrorMessage(err) {
-    const { type, message } = err;
-    const guidance = ERROR_GUIDANCE[type];
-    if (guidance) {
-        return guidance;
-    }
-    return message || 'Connection error';
+    return ERROR_GUIDANCE[err.type] || err.message || 'Connection error';
 }
 
-/**
- * Calculate delay with exponential backoff and jitter
- * @param {number} attempt - Current attempt number (0-indexed)
- * @returns {number} Delay in milliseconds
- */
 function calculateBackoffDelay(attempt) {
     const exponentialDelay = RECONNECT_CONFIG.baseDelay * Math.pow(2, attempt);
     const jitter = exponentialDelay * RECONNECT_CONFIG.jitter * Math.random();
@@ -106,11 +81,6 @@ function calculateBackoffDelay(attempt) {
     return Math.floor(delay);
 }
 
-/**
- * Update and broadcast status
- * @param {string} status
- * @param {string} [message]
- */
 function setStatus(status, message = '') {
     currentStatus = status;
     if (onStatusChange) {
@@ -118,18 +88,15 @@ function setStatus(status, message = '') {
     }
 }
 
-/**
- * Get current connection status
- * @returns {string}
- */
+function nextSessionGeneration() {
+    sessionGeneration += 1;
+    return sessionGeneration;
+}
+
 export function getConnectionStatus() {
     return currentStatus;
 }
 
-/**
- * Initialize peer session
- * @param {Object} callbacks
- */
 export function initPeerSession(callbacks) {
     onMatchFound = callbacks.onMatchFound;
     onConnectionChange = callbacks.onConnectionChange;
@@ -137,109 +104,6 @@ export function initPeerSession(callbacks) {
     onStatusChange = callbacks.onStatusChange;
 }
 
-/**
- * Get PeerJS configuration
- * @returns {Object}
- */
-function getPeerConfig() {
-    const config = getPeerServerConfig();
-    const isHttpsPage = window.location.protocol === 'https:';
-    return {
-        host: config.host,
-        port: config.port,
-        secure: isHttpsPage || config.port === 443,
-        debug: PEER_DEBUG_LEVEL
-    };
-}
-
-/**
- * Create or get the peer instance
- * @returns {Promise<Peer>}
- */
-async function ensurePeer() {
-    if (peer && !peer.destroyed) {
-        return peer;
-    }
-
-    setStatus(ConnectionStatus.INITIALIZING, 'Setting up peer connection...');
-
-    return new Promise((resolve, reject) => {
-        const config = getPeerConfig();
-        const existingId = getPeerId();
-        let settled = false;
-
-        function safeResolve(value) {
-            if (!settled) {
-                settled = true;
-                resolve(value);
-            }
-        }
-
-        function safeReject(error) {
-            if (!settled) {
-                settled = true;
-                reject(error);
-            }
-        }
-
-        function createPeer(preferredId = null) {
-            return preferredId
-                ? new Peer(preferredId, config)
-                : new Peer(config);
-        }
-
-        function attachPeerHandlers(activePeer) {
-            activePeer.on('open', (id) => {
-                console.log('Peer connected with ID:', id);
-                setPeerId(id);
-                setStatus(ConnectionStatus.WAITING, 'Ready for connection');
-                safeResolve(activePeer);
-            });
-
-            activePeer.on('error', (err) => {
-                logError(err, 'Peer initialization');
-
-                if (err.type === 'unavailable-id') {
-                    console.log('[PeerJS] Retrying with new peer ID...');
-
-                    if (!activePeer.destroyed) {
-                        activePeer.destroy();
-                    }
-
-                    peer = createPeer();
-                    attachPeerHandlers(peer);
-                    return;
-                }
-
-                setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
-                safeReject(err);
-            });
-
-            activePeer.on('connection', (conn) => {
-                handleIncomingConnection(conn);
-            });
-
-            activePeer.on('disconnected', () => {
-                console.log('[PeerJS] Disconnected from signaling server', {
-                    peerId: activePeer.id,
-                    timestamp: new Date().toISOString()
-                });
-
-                if (!activePeer.destroyed) {
-                    setStatus(ConnectionStatus.RECONNECTING, 'Reconnecting to server...');
-                    activePeer.reconnect();
-                }
-            });
-        }
-
-        peer = createPeer(existingId);
-        attachPeerHandlers(peer);
-    });
-}
-
-/**
- * Clear any pending reconnect timer
- */
 function clearReconnectTimer() {
     if (reconnectTimer) {
         clearTimeout(reconnectTimer);
@@ -247,355 +111,254 @@ function clearReconnectTimer() {
     }
 }
 
-/**
- * Attempt a single reconnection
- * @returns {Promise<boolean>}
- */
-async function attemptReconnect() {
-    const partnerId = getPartnerId();
-    if (!partnerId) {
-        return false;
+function connectWebSocket(topic) {
+    if (!topic) {
+        return Promise.reject(new Error('Room code is required'));
     }
 
-    try {
-        await connectToPartner(partnerId);
-        return true;
-    } catch (err) {
-        logError(err, 'Reconnect attempt');
-        return false;
-    }
-}
+    setStatus(ConnectionStatus.CONNECTING, 'Connecting...');
 
-/**
- * Start reconnection attempts with exponential backoff
- * @returns {Promise<boolean>}
- */
-export async function startReconnecting() {
-    const partnerId = getPartnerId();
-    if (!partnerId || isReconnecting) {
-        return false;
+    if (socket && socket.readyState === WebSocket.OPEN && currentTopic === topic) {
+        if (hasPartnerJoined) {
+            setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
+        } else {
+            setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for partner...');
+        }
+        return Promise.resolve(socket);
     }
 
-    isReconnecting = true;
-    clearReconnectTimer();
-    reconnectAttempt = 0;
-
-    return new Promise((resolve) => {
-        const tryOnce = async () => {
-            reconnectAttempt++;
-            const attemptNum = reconnectAttempt;
-            setStatus(
-                ConnectionStatus.RECONNECTING,
-                `Retrying connection... (${attemptNum}/${RECONNECT_CONFIG.maxAttempts})`
-            );
-
-            const success = await attemptReconnect();
-
-            if (success) {
-                clearReconnectTimer();
-                reconnectAttempt = 0;
-                isReconnecting = false;
-                resolve(true);
-                return;
-            }
-
-            if (reconnectAttempt >= RECONNECT_CONFIG.maxAttempts) {
-                clearReconnectTimer();
-                reconnectAttempt = 0;
-                isReconnecting = false;
-                setStatus(ConnectionStatus.WAITING, 'Partner unavailable');
-                resolve(false);
-                return;
-            }
-
-            const delay = calculateBackoffDelay(reconnectAttempt);
-            console.log(`Reconnect attempt ${attemptNum} failed. Retrying in ${Math.round(delay / 1000)}s...`);
-            reconnectTimer = setTimeout(tryOnce, delay);
-        };
-
-        tryOnce();
-    });
-}
-
-/**
- * Try to reconnect to a previously connected partner (single attempt)
- * @returns {Promise<boolean>}
- */
-export async function tryReconnect() {
-    const partnerId = getPartnerId();
-    if (!partnerId) {
-        return false;
+    if (connectPromise && currentTopic === topic) {
+        return connectPromise;
     }
 
-    try {
-        setStatus(ConnectionStatus.RECONNECTING, 'Reconnecting to partner...');
-        await connectToPartner(partnerId);
-        return true;
-    } catch (err) {
-        console.error('Failed to reconnect to partner:', err);
-        setStatus(ConnectionStatus.WAITING, 'Partner not available');
-        return false;
-    }
-}
+    const generation = sessionGeneration;
 
-/**
- * Manually trigger reconnection with retry policy
- * @returns {Promise<boolean>}
- */
-export async function retryConnection() {
-    return startReconnecting();
-}
-
-/**
- * Check if we have a stored partner to reconnect to
- * @returns {boolean}
- */
-export function hasStoredPartner() {
-    return !!getPartnerId();
-}
-
-/**
- * Generate a shareable session link
- * @returns {Promise<string>}
- */
-export async function generateSessionLink() {
-    await ensurePeer();
-    const url = new URL(window.location.href);
-    url.searchParams.set('join', peer.id);
-    return url.toString();
-}
-
-/**
- * Check if there's a session to join from URL
- * @returns {string|null}
- */
-export function getJoinIdFromUrl() {
-    const url = new URL(window.location.href);
-    return url.searchParams.get('join');
-}
-
-/**
- * Clear the join parameter from URL
- */
-export function clearJoinParam() {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('join');
-    window.history.replaceState({}, '', url.toString());
-}
-
-/**
- * Connect to a partner's peer
- * @param {string} partnerId
- * @returns {Promise<void>}
- */
-export async function connectToPartner(partnerId) {
-    if (connection) {
-        connection.close();
+    if (socket) {
+        socket.close();
+        socket = null;
     }
 
-    setStatus(ConnectionStatus.CONNECTING, 'Connecting to partner...');
-    await ensurePeer();
+    currentTopic = topic;
 
-    return new Promise((resolve, reject) => {
+    connectPromise = new Promise((resolve, reject) => {
+        let settled = false;
+        const wsUrl = `wss://${NTFY_HOST}/${topic}/ws`;
+        const ws = new WebSocket(wsUrl);
+        socket = ws;
+
         const timeout = setTimeout(() => {
-            setStatus(ConnectionStatus.ERROR, 'Connection timed out');
-            reject(new Error('Connection timed out'));
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            ws.close();
+            reject(new Error('Connection timeout'));
         }, 15000);
 
-        connection = peer.connect(partnerId, { reliable: true });
-
-        connection.on('open', () => {
-            clearTimeout(timeout);
-            console.log('[PeerJS] Connection established', {
-                localPeer: peer.id,
-                remotePeer: partnerId,
-                connectionId: connection.connectionId,
-                reliable: connection.reliable,
-                timestamp: new Date().toISOString()
-            });
-
-            // Store partner ID for reconnection
-            setPartnerId(partnerId);
-
-            setupConnectionHandlers(connection);
-
-            // Send our likes
-            sendLikes();
-
-            setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
-            if (onConnectionChange) {
-                onConnectionChange(true);
+        ws.onopen = () => {
+            if (settled) {
+                return;
             }
 
-            resolve();
-        });
+            if (generation !== sessionGeneration) {
+                settled = true;
+                clearTimeout(timeout);
+                ws.close();
+                reject(new Error('Session superseded'));
+                return;
+            }
 
-        connection.on('error', (err) => {
             clearTimeout(timeout);
-            logError(err, 'Connection (outgoing)');
-            setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
+            console.log('[ntfy] WebSocket connected to topic:', topic);
+
+            if (hasPartnerJoined) {
+                setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
+            } else {
+                setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for partner...');
+            }
+
+            settled = true;
+            resolve(ws);
+        };
+
+        ws.onmessage = (event) => {
+            if (generation !== sessionGeneration) {
+                return;
+            }
+
+            try {
+                const data = JSON.parse(event.data);
+                if (data.event === 'message' && data.topic === topic) {
+                    const message = JSON.parse(data.message);
+                    handleMessage(message);
+                }
+            } catch (err) {
+                console.warn('[ntfy] Failed to parse message:', err);
+            }
+        };
+
+        ws.onerror = (err) => {
+            if (settled || generation !== sessionGeneration) {
+                return;
+            }
+
+            clearTimeout(timeout);
+            logError(err, 'WebSocket error');
+            settled = true;
             reject(err);
-        });
+        };
+
+        ws.onclose = (event) => {
+            clearTimeout(timeout);
+
+            if (generation !== sessionGeneration) {
+                return;
+            }
+
+            console.log('[ntfy] WebSocket closed', {
+                code: event.code,
+                reason: event.reason,
+                topic: currentTopic
+            });
+
+            if (socket === ws) {
+                socket = null;
+            }
+
+            connectPromise = null;
+
+            if (currentTopic) {
+                const wasPartnerConnected = hasPartnerJoined;
+                hasPartnerJoined = false;
+                if (wasPartnerConnected && onConnectionChange) {
+                    onConnectionChange(false);
+                }
+                setStatus(ConnectionStatus.CONNECTING, 'Reconnecting...');
+                scheduleReconnect();
+            } else {
+                setStatus(ConnectionStatus.DISCONNECTED, 'Disconnected');
+            }
+        };
+    }).finally(() => {
+        if (generation === sessionGeneration) {
+            connectPromise = null;
+        }
     });
+
+    return connectPromise;
 }
 
-/**
- * Handle incoming connection from partner
- * @param {DataConnection} conn
- */
-function handleIncomingConnection(conn) {
-    if (connection) {
-        connection.close();
+function scheduleReconnect() {
+    if (!getSessionTopic() || isReconnecting) {
+        return;
     }
 
-    connection = conn;
-    setStatus(ConnectionStatus.CONNECTING, 'Partner connecting...');
+    clearReconnectTimer();
+    isReconnecting = true;
+    reconnectAttempt = 0;
+    const generation = sessionGeneration;
 
-    conn.on('open', () => {
-        console.log('[PeerJS] Incoming connection accepted', {
-            localPeer: peer ? peer.id : null,
-            remotePeer: conn.peer,
-            connectionId: conn.connectionId,
-            reliable: conn.reliable,
-            timestamp: new Date().toISOString()
+    const tryConnect = () => {
+        if (generation !== sessionGeneration) {
+            isReconnecting = false;
+            return;
+        }
+
+        if (!getSessionTopic()) {
+            isReconnecting = false;
+            return;
+        }
+
+        reconnectAttempt++;
+        setStatus(
+            ConnectionStatus.CONNECTING,
+            `Reconnecting... (${reconnectAttempt}/${RECONNECT_CONFIG.maxAttempts})`
+        );
+
+        connectWebSocket(getSessionTopic())
+            .then(() => {
+                isReconnecting = false;
+                reconnectAttempt = 0;
+                sendLikes();
+            })
+            .catch((err) => {
+                logError(err, 'Reconnect attempt');
+                if (reconnectAttempt >= RECONNECT_CONFIG.maxAttempts) {
+                    isReconnecting = false;
+                    reconnectAttempt = 0;
+                    setStatus(ConnectionStatus.IN_ROOM, 'Partner unavailable');
+                    return;
+                }
+
+                const delay = calculateBackoffDelay(reconnectAttempt);
+                console.log(`Reconnect attempt ${reconnectAttempt} failed. Retrying in ${Math.round(delay / 1000)}s...`);
+                reconnectTimer = setTimeout(tryConnect, delay);
+            });
+    };
+
+    reconnectTimer = setTimeout(tryConnect, 1000);
+}
+
+async function publishMessage(data) {
+    if (!currentTopic) {
+        console.warn('[ntfy] No topic set, cannot publish');
+        return;
+    }
+
+    const url = `https://${NTFY_HOST}/${currentTopic}`;
+    const body = JSON.stringify({
+        ...data,
+        senderId: instanceId
+    });
+
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Cache': 'no'
+            },
+            body: body
         });
+    } catch (err) {
+        console.error('[ntfy] Failed to publish message:', err);
+    }
+}
 
-        // Store partner ID for reconnection
-        setPartnerId(conn.peer);
+function handleMessage(data) {
+    if (data.senderId === instanceId) {
+        return;
+    }
 
-        setupConnectionHandlers(conn);
-
-        // Send our likes
-        sendLikes();
-
+    if (!hasPartnerJoined) {
+        hasPartnerJoined = true;
         setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
         if (onConnectionChange) {
             onConnectionChange(true);
         }
-    });
-}
+    }
 
-/**
- * Set up data handlers for connection
- * @param {DataConnection} conn
- */
-function setupConnectionHandlers(conn) {
-    conn.on('data', (data) => {
-        handleMessage(data);
-    });
-
-    conn.on('close', () => {
-        console.log('[PeerJS] Connection closed', {
-            remotePeer: conn.peer,
-            wasConnected: conn.open,
-            timestamp: new Date().toISOString()
-        });
-        partnerLikes.clear();
-        connection = null;
-
-        // Don't clear partner ID - we might reconnect
-        setStatus(ConnectionStatus.WAITING, 'Partner disconnected');
-
-        if (onConnectionChange) {
-            onConnectionChange(false);
-        }
-        if (onMatchesUpdated) {
-            onMatchesUpdated([]);
-        }
-
-        // Try to reconnect after a delay using exponential backoff
-        const partnerId = getPartnerId();
-        if (partnerId) {
-            console.log('[PeerJS] Scheduling reconnect attempt...');
-            clearReconnectTimer();
-            reconnectTimer = setTimeout(() => {
-                if (!connection && getPartnerId()) {
-                    startReconnecting();
-                }
-            }, 3000);
-        }
-    });
-
-    conn.on('error', (err) => {
-        logError(err, 'Connection (incoming)');
-        setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
-    });
-}
-
-/**
- * Handle incoming message
- * @param {Object} data
- */
-function handleMessage(data) {
     if (data.type === 'likes') {
-        // Full likes sync
         partnerLikes = new Set(data.likes);
         updateMatches();
+        sendLikes();
     } else if (data.type === 'like') {
-        // Single new like
         const name = data.name;
         const wasNew = !partnerLikes.has(name);
         partnerLikes.add(name);
 
-        // Check if this creates a new match
         if (wasNew && getLikes().includes(name) && onMatchFound) {
             onMatchFound(name);
         }
 
         updateMatches();
     } else if (data.type === 'unlike') {
-        // Remove a like
         partnerLikes.delete(data.name);
         updateMatches();
     }
 }
 
-/**
- * Send all our likes to partner
- */
-function sendLikes() {
-    if (!connection || !connection.open) return;
-
-    connection.send({
-        type: 'likes',
-        likes: getLikes()
-    });
-}
-
-/**
- * Notify partner of a new like
- * @param {string} name
- */
-export function notifyLike(name) {
-    if (!connection || !connection.open) return;
-
-    connection.send({
-        type: 'like',
-        name: name
-    });
-
-    // Check if partner already liked this
-    if (partnerLikes.has(name) && onMatchFound) {
-        onMatchFound(name);
-    }
-}
-
-/**
- * Notify partner of an unlike
- * @param {string} name
- */
-export function notifyUnlike(name) {
-    if (!connection || !connection.open) return;
-
-    connection.send({
-        type: 'unlike',
-        name: name
-    });
-}
-
-/**
- * Update matches list
- */
 function updateMatches() {
     const myLikes = new Set(getLikes());
     const matches = [...myLikes].filter(name => partnerLikes.has(name));
@@ -605,48 +368,175 @@ function updateMatches() {
     }
 }
 
-/**
- * Get current matches
- * @returns {string[]}
- */
+function sendLikes() {
+    publishMessage({
+        type: 'likes',
+        likes: getLikes()
+    });
+}
+
+export async function joinSession(topic) {
+    if (!topic || topic.trim() === '') {
+        throw new Error('Room code is required');
+    }
+
+    nextSessionGeneration();
+    const trimmedTopic = topic.trim().toLowerCase();
+
+    clearReconnectTimer();
+    reconnectAttempt = 0;
+    isReconnecting = false;
+    hasPartnerJoined = false;
+
+    currentTopic = trimmedTopic;
+    setSessionTopic(trimmedTopic);
+
+    try {
+        await connectWebSocket(trimmedTopic);
+        sendLikes();
+        return true;
+    } catch (err) {
+        logError(err, 'Join session');
+        currentTopic = null;
+        clearSessionTopic();
+        hasPartnerJoined = false;
+        setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
+        throw err;
+    }
+}
+
+export async function createSession() {
+    const topic = generateTopic();
+    await joinSession(topic);
+    return topic;
+}
+
+export async function generateShareLink() {
+    const topic = currentTopic || getSessionTopic();
+    if (!topic) {
+        throw new Error('No active session');
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', topic);
+    return url.toString();
+}
+
+export function getRoomFromUrl() {
+    const url = new URL(window.location.href);
+    return url.searchParams.get('room');
+}
+
+export function clearRoomParam() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    window.history.replaceState({}, '', url.toString());
+}
+
+export async function createNewSession() {
+    return createSession();
+}
+
+export async function notifyLike(name) {
+    if (!currentTopic) return;
+
+    await publishMessage({
+        type: 'like',
+        name: name
+    });
+
+    if (partnerLikes.has(name) && onMatchFound) {
+        onMatchFound(name);
+    }
+}
+
+export async function notifyUnlike(name) {
+    if (!currentTopic) return;
+
+    await publishMessage({
+        type: 'unlike',
+        name: name
+    });
+}
+
 export function getMatches() {
     const myLikes = new Set(getLikes());
     return [...myLikes].filter(name => partnerLikes.has(name));
 }
 
-/**
- * Get partner's liked names
- * @returns {Set<string>}
- */
 export function getPartnerLikes() {
     return new Set(partnerLikes);
 }
 
-/**
- * Check if connected to partner
- * @returns {boolean}
- */
 export function isConnected() {
-    return connection && connection.open;
+    return hasPartnerJoined;
 }
 
-/**
- * Disconnect from partner (intentional)
- */
-export function disconnect() {
-    // Clear partner ID to prevent auto-reconnect
-    clearPartnerId();
+export function isInRoom() {
+    return socket && socket.readyState === WebSocket.OPEN;
+}
+
+export function getCurrentTopic() {
+    return currentTopic;
+}
+
+export function getStoredSessionTopic() {
+    return getSessionTopic();
+}
+
+export function hasStoredSession() {
+    return !!getSessionTopic();
+}
+
+export async function tryReconnect() {
+    const topic = getSessionTopic();
+    if (!topic) {
+        return false;
+    }
+
+    try {
+        setStatus(ConnectionStatus.CONNECTING, 'Reconnecting...');
+        await connectWebSocket(topic);
+        sendLikes();
+        return true;
+    } catch (err) {
+        console.error('Failed to reconnect:', err);
+        setStatus(ConnectionStatus.IN_ROOM, 'Unable to reconnect');
+        return false;
+    }
+}
+
+export async function disconnect(createNew = true) {
+    nextSessionGeneration();
     clearReconnectTimer();
     reconnectAttempt = 0;
     isReconnecting = false;
+    hasPartnerJoined = false;
+    connectPromise = null;
 
-    if (connection) {
-        connection.close();
-        connection = null;
+    clearSessionTopic();
+
+    if (socket) {
+        socket.close();
+        socket = null;
     }
+
+    currentTopic = null;
     partnerLikes.clear();
 
-    setStatus(ConnectionStatus.DISCONNECTED, 'Disconnected');
+    if (createNew) {
+        setStatus(ConnectionStatus.CONNECTING, 'Creating new connection...');
+
+        try {
+            await createNewSession();
+        } catch (err) {
+            console.error('Failed to create new session:', err);
+            setStatus(ConnectionStatus.DISCONNECTED, 'Failed to create new connection');
+        }
+    } else {
+        setStatus(ConnectionStatus.DISCONNECTED, 'Disconnected');
+    }
+
     if (onConnectionChange) {
         onConnectionChange(false);
     }
@@ -655,23 +545,27 @@ export function disconnect() {
     }
 }
 
-/**
- * Get peer ID
- * @returns {string|null}
- */
-export function getCurrentPeerId() {
-    return peer ? peer.id : null;
-}
-
-/**
- * Initialize peer and attempt auto-reconnect if partner is stored
- * @returns {Promise<void>}
- */
 export async function initializeAndReconnect() {
-    await ensurePeer();
-
-    // Try to reconnect to stored partner with retry policy
-    if (hasStoredPartner()) {
-        await startReconnecting();
+    const topic = getSessionTopic();
+    if (topic) {
+        try {
+            nextSessionGeneration();
+            hasPartnerJoined = false;
+            await connectWebSocket(topic);
+            sendLikes();
+        } catch (err) {
+            console.log('[ntfy] Stored session not available, creating new...');
+            try {
+                await createNewSession();
+            } catch (createErr) {
+                console.error('Failed to create new session:', createErr);
+            }
+        }
+    } else {
+        try {
+            await createNewSession();
+        } catch (err) {
+            console.error('Failed to create initial session:', err);
+        }
     }
 }
