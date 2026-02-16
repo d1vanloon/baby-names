@@ -22,13 +22,10 @@ import {
     getViewed,
     markViewed,
     clearViewed,
-    getPeerId,
-    setPeerId,
-    getPeerServerConfig,
-    setPeerServerConfig,
-    getPartnerId,
-    setPartnerId,
-    clearPartnerId
+    getSessionTopic,
+    setSessionTopic,
+    clearSessionTopic,
+    getInstanceId
 } from '../storage.js';
 
 describe('storage.js', () => {
@@ -124,58 +121,40 @@ describe('storage.js', () => {
         });
     });
 
-    describe('peerId', () => {
-        it('should return null when no peer ID stored', () => {
-            expect(getPeerId()).toBeNull();
+    describe('sessionTopic', () => {
+        it('should return null when no session topic stored', () => {
+            expect(getSessionTopic()).toBeNull();
         });
 
-        it('should save and retrieve peer ID', () => {
-            setPeerId('abc-123');
-            expect(getPeerId()).toBe('abc-123');
-        });
-    });
-
-    describe('peerServerConfig', () => {
-        it('should return default config when none stored', () => {
-            const config = getPeerServerConfig();
-            expect(config).toEqual({ host: '0.peerjs.com', port: 443 });
+        it('should save and retrieve session topic', () => {
+            setSessionTopic('a7x2k9m1');
+            expect(getSessionTopic()).toBe('a7x2k9m1');
         });
 
-        it('should save and retrieve custom host', () => {
-            setPeerServerConfig('my-peer-server.com', null);
-            const config = getPeerServerConfig();
-            expect(config.host).toBe('my-peer-server.com');
-            expect(config.port).toBe(443);
-        });
-
-        it('should save and retrieve custom port', () => {
-            setPeerServerConfig(null, 9000);
-            const config = getPeerServerConfig();
-            expect(config.host).toBe('0.peerjs.com');
-            expect(config.port).toBe(9000);
-        });
-
-        it('should save both host and port', () => {
-            setPeerServerConfig('custom.com', 8080);
-            const config = getPeerServerConfig();
-            expect(config).toEqual({ host: 'custom.com', port: 8080 });
+        it('should clear session topic', () => {
+            setSessionTopic('a7x2k9m1');
+            clearSessionTopic();
+            expect(getSessionTopic()).toBeNull();
         });
     });
 
-    describe('partnerId', () => {
-        it('should return null when no partner ID stored', () => {
-            expect(getPartnerId()).toBeNull();
+    describe('instanceId', () => {
+        it('should generate a UUID when no instance ID stored', () => {
+            const id = getInstanceId();
+            expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
         });
 
-        it('should save and retrieve partner ID', () => {
-            setPartnerId('partner-abc');
-            expect(getPartnerId()).toBe('partner-abc');
+        it('should return same ID on subsequent calls', () => {
+            const id1 = getInstanceId();
+            const id2 = getInstanceId();
+            expect(id1).toBe(id2);
         });
 
-        it('should clear partner ID', () => {
-            setPartnerId('partner-abc');
-            clearPartnerId();
-            expect(getPartnerId()).toBeNull();
+        it('should return different ID after storage is cleared', () => {
+            const id1 = getInstanceId();
+            localStorageMock.clear();
+            const id2 = getInstanceId();
+            expect(id1).not.toBe(id2);
         });
     });
 });

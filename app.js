@@ -6,9 +6,7 @@ import {
     getLastName,
     setLastName,
     getLikes,
-    addLike,
-    getPeerServerConfig,
-    setPeerServerConfig
+    addLike
 } from './storage.js';
 
 import {
@@ -33,14 +31,18 @@ import {
 
 import {
     initPeerSession,
-    generateSessionLink,
-    getJoinIdFromUrl,
-    clearJoinParam,
-    connectToPartner,
+    generateShareLink,
+    getRoomFromUrl,
+    clearRoomParam,
+    joinSession,
+    createNewSession,
     notifyLike,
     isConnected,
+    isInRoom,
     disconnect,
     getMatches,
+    getCurrentTopic,
+    getStoredSessionTopic,
     ConnectionStatus,
     initializeAndReconnect
 } from './peerSession.js';
@@ -100,17 +102,18 @@ const elements = {
     // Session modal
     sessionModal: document.getElementById('session-modal'),
     closeModalBtn: document.getElementById('close-modal-btn'),
-    sessionLink: document.getElementById('session-link'),
+    sessionRoomSection: document.getElementById('session-room-section'),
+    sessionCode: document.getElementById('session-code'),
+    copyCodeBtn: document.getElementById('copy-code-btn'),
     copyLinkBtn: document.getElementById('copy-link-btn'),
-    peerServerHost: document.getElementById('peer-server-host'),
-    peerServerPort: document.getElementById('peer-server-port'),
-    savePeerSettingsBtn: document.getElementById('save-peer-settings-btn'),
+    disconnectBtn: document.getElementById('disconnect-btn'),
+    sessionJoinSection: document.getElementById('session-join-section'),
+    roomCodeInput: document.getElementById('room-code-input'),
+    joinRoomBtn: document.getElementById('join-room-btn'),
     sessionStatus: document.getElementById('session-status'),
     sessionStatusIcon: document.getElementById('session-status-icon'),
     sessionStatusText: document.getElementById('session-status-text'),
     sessionConnected: document.getElementById('session-connected'),
-    sessionDisconnected: document.getElementById('session-disconnected'),
-    sessionHelp: document.getElementById('session-help'),
     modalDisconnectBtn: document.getElementById('modal-disconnect-btn'),
 
     // Match animation
@@ -243,8 +246,10 @@ function handleConnectionChange(connected) {
         elements.connectionStatus.textContent = '🔗 Connected with partner';
     }
 
-    // Update session modal if open
-    updateSessionModalState(connected);
+    // Update session modal buttons
+    if (!elements.sessionModal.classList.contains('hidden')) {
+        updateSessionModalState();
+    }
 }
 
 function handleStatusChange(status, message) {
@@ -256,22 +261,22 @@ function handleStatusChange(status, message) {
     statusEl.classList.remove('status-loading', 'status-connected', 'status-error');
 
     switch (status) {
-        case ConnectionStatus.INITIALIZING:
         case ConnectionStatus.CONNECTING:
-        case ConnectionStatus.RECONNECTING:
             statusEl.classList.add('status-loading');
             iconEl.textContent = '⏳';
             textEl.textContent = message || 'Connecting...';
             break;
-        case ConnectionStatus.WAITING:
+        case ConnectionStatus.IN_ROOM:
             iconEl.textContent = '📡';
-            textEl.textContent = message || 'Ready for connection';
+            textEl.textContent = message || 'Ready to connect, waiting for partner...';
             break;
         case ConnectionStatus.CONNECTED:
             statusEl.classList.add('status-connected');
             iconEl.textContent = '✅';
-            textEl.textContent = message || 'Connected!';
-            updateSessionModalState(true);
+            textEl.textContent = message || 'Connected to partner!';
+            if (!elements.sessionModal.classList.contains('hidden')) {
+                updateSessionModalState();
+            }
             break;
         case ConnectionStatus.ERROR:
             statusEl.classList.add('status-error');
@@ -281,42 +286,32 @@ function handleStatusChange(status, message) {
         case ConnectionStatus.DISCONNECTED:
         default:
             iconEl.textContent = '📴';
-            textEl.textContent = message || 'Disconnected';
-            updateSessionModalState(false);
+            textEl.textContent = message || 'Enter a code to connect or start a new connection';
+            if (!elements.sessionModal.classList.contains('hidden')) {
+                updateSessionModalState();
+            }
             break;
-    }
-}
-
-function updateSessionModalState(connected) {
-    if (connected) {
-        elements.sessionConnected.classList.remove('hidden');
-        elements.sessionDisconnected.classList.add('hidden');
-        elements.sessionHelp.classList.add('hidden');
-    } else {
-        elements.sessionConnected.classList.add('hidden');
-        elements.sessionDisconnected.classList.remove('hidden');
-        elements.sessionHelp.classList.remove('hidden');
     }
 }
 
 // ========================================
 // Session Modal
 // ========================================
-async function showSessionModal() {
+function showSessionModal() {
     elements.sessionModal.classList.remove('hidden');
+    updateSessionModalState();
+}
 
-    // Load current peer settings
-    const config = getPeerServerConfig();
-    elements.peerServerHost.value = config.host;
-    elements.peerServerPort.value = config.port;
+function updateSessionModalState() {
+    const topic = getCurrentTopic() || getStoredSessionTopic();
+    const inRoom = isInRoom();
+    const connected = isConnected();
 
-    // Generate session link
-    try {
-        const link = await generateSessionLink();
-        elements.sessionLink.value = link;
-    } catch (err) {
-        console.error('Failed to generate session link:', err);
-        elements.sessionLink.value = 'Error generating link';
+    // Show current room code if in a room
+    if (topic) {
+        elements.sessionCode.value = topic;
+    } else {
+        elements.sessionCode.value = '';
     }
 }
 
@@ -381,39 +376,63 @@ function setupEventHandlers() {
 
     elements.sessionModal.querySelector('.modal-overlay').addEventListener('click', hideSessionModal);
 
-    elements.copyLinkBtn.addEventListener('click', async () => {
+    elements.copyCodeBtn.addEventListener('click', async () => {
         try {
-            await navigator.clipboard.writeText(elements.sessionLink.value);
-            elements.copyLinkBtn.textContent = 'Copied!';
+            await navigator.clipboard.writeText(elements.sessionCode.value);
+            elements.copyCodeBtn.textContent = 'Copied!';
             setTimeout(() => {
-                elements.copyLinkBtn.textContent = 'Copy';
+                elements.copyCodeBtn.textContent = 'Copy';
             }, 2000);
         } catch (err) {
             // Fallback for older browsers
-            elements.sessionLink.select();
+            elements.sessionCode.select();
             document.execCommand('copy');
         }
     });
 
-    // Peer settings
-    elements.savePeerSettingsBtn.addEventListener('click', () => {
-        const host = elements.peerServerHost.value.trim();
-        const port = parseInt(elements.peerServerPort.value, 10);
+    elements.copyLinkBtn.addEventListener('click', async () => {
+        try {
+            const link = await generateShareLink();
+            await navigator.clipboard.writeText(link);
+            elements.copyLinkBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                elements.copyLinkBtn.textContent = 'Copy Link';
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy link:', err);
+        }
+    });
 
-        if (host && port) {
-            setPeerServerConfig(host, port);
-            alert('Settings saved. Reconnect to apply.');
+    // Join room button
+    elements.joinRoomBtn.addEventListener('click', async () => {
+        const roomCode = elements.roomCodeInput.value.trim();
+        if (roomCode) {
+            try {
+                await joinSession(roomCode);
+                elements.roomCodeInput.value = '';
+                updateSessionModalState();
+            } catch (err) {
+                console.error('Failed to join room:', err);
+                alert('Failed to join room. Please check the code and try again.');
+            }
+        }
+    });
+
+    // Allow Enter key to join room
+    elements.roomCodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            elements.joinRoomBtn.click();
         }
     });
 
     // Disconnect
-    elements.disconnectBtn.addEventListener('click', () => {
-        disconnect();
+    elements.disconnectBtn.addEventListener('click', async () => {
+        await disconnect();
     });
 
     // Modal disconnect button
-    elements.modalDisconnectBtn.addEventListener('click', () => {
-        disconnect();
+    elements.modalDisconnectBtn.addEventListener('click', async () => {
+        await disconnect();
     });
 }
 
@@ -469,8 +488,8 @@ async function init() {
     // Check for existing last name
     currentLastName = getLastName();
 
-    // Check for join link
-    const joinId = getJoinIdFromUrl();
+    // Check for room code in URL
+    const roomCode = getRoomFromUrl();
 
     if (currentLastName) {
         // Returning user
@@ -478,17 +497,18 @@ async function init() {
         renderCardStack();
         updateLikesCount();
 
-        // Auto-connect if join link provided, otherwise try to reconnect to stored partner
-        if (joinId) {
-            clearJoinParam();
+        // Auto-connect if room code provided, otherwise try to reconnect to stored session
+        if (roomCode) {
+            clearRoomParam();
             try {
-                await connectToPartner(joinId);
+                await joinSession(roomCode);
+                updateSessionModalState();
             } catch (err) {
-                console.error('Failed to connect to partner:', err);
-                alert('Failed to connect to partner. Please try again.');
+                console.error('Failed to join room:', err);
+                alert('Failed to join room. Please check the code and try again.');
             }
         } else {
-            // Try to reconnect to previously connected partner
+            // Try to reconnect to previously connected session
             try {
                 await initializeAndReconnect();
             } catch (err) {
@@ -499,15 +519,15 @@ async function init() {
         // New user
         showScreen('setup');
 
-        // Store join ID for after setup
-        if (joinId) {
-            // Will handle join after setup
+        // Handle room code from URL after setup
+        if (roomCode) {
             elements.startBtn.addEventListener('click', async () => {
-                clearJoinParam();
+                clearRoomParam();
                 try {
-                    await connectToPartner(joinId);
+                    await joinSession(roomCode);
+                    updateSessionModalState();
                 } catch (err) {
-                    console.error('Failed to connect to partner:', err);
+                    console.error('Failed to join room:', err);
                 }
             }, { once: true });
         }

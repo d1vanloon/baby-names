@@ -6,11 +6,20 @@ const STORAGE_KEYS = {
     LAST_NAME: 'babyNames_lastName',
     LIKES: 'babyNames_likes',
     VIEWED: 'babyNames_viewed',
-    PEER_ID: 'babyNames_peerId',
-    PARTNER_ID: 'babyNames_partnerId',
-    PEER_SERVER_HOST: 'babyNames_peerServerHost',
-    PEER_SERVER_PORT: 'babyNames_peerServerPort'
+    SESSION_TOPIC: 'babyNames_sessionTopic',
+    SESSION_INSTANCE_ID: 'babyNames_instanceId'
 };
+
+function generateUuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
 
 /**
  * Get the stored last name
@@ -92,67 +101,37 @@ export function clearViewed() {
 }
 
 /**
- * Get stored peer ID
+ * Get stored session topic
  * @returns {string|null}
  */
-export function getPeerId() {
-    return localStorage.getItem(STORAGE_KEYS.PEER_ID);
+export function getSessionTopic() {
+    return localStorage.getItem(STORAGE_KEYS.SESSION_TOPIC);
 }
 
 /**
- * Save peer ID
- * @param {string} peerId
+ * Save session topic
+ * @param {string} topic
  */
-export function setPeerId(peerId) {
-    localStorage.setItem(STORAGE_KEYS.PEER_ID, peerId);
+export function setSessionTopic(topic) {
+    localStorage.setItem(STORAGE_KEYS.SESSION_TOPIC, topic);
 }
 
 /**
- * Get peer server configuration
- * @returns {{host: string, port: number}}
+ * Clear session topic (on disconnect)
  */
-export function getPeerServerConfig() {
-    const host = localStorage.getItem(STORAGE_KEYS.PEER_SERVER_HOST);
-    const port = localStorage.getItem(STORAGE_KEYS.PEER_SERVER_PORT);
-    return {
-        host: host || '0.peerjs.com',
-        port: port ? parseInt(port, 10) : 443
-    };
+export function clearSessionTopic() {
+    localStorage.removeItem(STORAGE_KEYS.SESSION_TOPIC);
 }
 
 /**
- * Save peer server configuration
- * @param {string} host
- * @param {number} port
+ * Get or create the instance ID for this device/browser
+ * @returns {string}
  */
-export function setPeerServerConfig(host, port) {
-    if (host) {
-        localStorage.setItem(STORAGE_KEYS.PEER_SERVER_HOST, host);
+export function getInstanceId() {
+    let instanceId = localStorage.getItem(STORAGE_KEYS.SESSION_INSTANCE_ID);
+    if (!instanceId) {
+        instanceId = generateUuid();
+        localStorage.setItem(STORAGE_KEYS.SESSION_INSTANCE_ID, instanceId);
     }
-    if (port) {
-        localStorage.setItem(STORAGE_KEYS.PEER_SERVER_PORT, port.toString());
-    }
-}
-
-/**
- * Get stored partner ID (for reconnection)
- * @returns {string|null}
- */
-export function getPartnerId() {
-    return localStorage.getItem(STORAGE_KEYS.PARTNER_ID);
-}
-
-/**
- * Save partner ID
- * @param {string} partnerId
- */
-export function setPartnerId(partnerId) {
-    localStorage.setItem(STORAGE_KEYS.PARTNER_ID, partnerId);
-}
-
-/**
- * Clear partner ID (on disconnect)
- */
-export function clearPartnerId() {
-    localStorage.removeItem(STORAGE_KEYS.PARTNER_ID);
+    return instanceId;
 }

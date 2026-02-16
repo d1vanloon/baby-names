@@ -197,46 +197,38 @@
                             class="btn btn-danger">Disconnect</button>
                 </div>
 
-                <!-- Disconnected state - show link -->
-                <div id="session-disconnected"
+                <!-- Connection code section - always visible -->
+                <div id="session-room-section"
                      class="session-section">
-                    <p>Share this link with your partner:</p>
+                    <p>Share this connection code with your partner:</p>
                     <div class="link-box">
                         <input type="text"
-                               id="session-link"
+                               id="session-code"
                                readonly>
+                        <button id="copy-code-btn"
+                                class="btn btn-small">Copy Code</button>
                         <button id="copy-link-btn"
-                                class="btn btn-small">Copy</button>
+                                class="btn btn-small">Copy Link</button>
                     </div>
-                    <p class="muted"
-                       id="session-waiting-text">Waiting for partner to connect...</p>
+                    <button id="disconnect-btn"
+                            class="btn btn-danger">Reset code (disconnect)</button>
                 </div>
 
-                <div id="session-help"
+                <!-- Join section - always visible -->
+                <div id="session-join-section"
                      class="session-section">
                     <div class="divider">
                         <span>or</span>
                     </div>
-                    <p>Have a link from your partner?</p>
-                    <p class="muted">Just open it in your browser!</p>
-                </div>
-
-                <!-- Advanced Settings -->
-                <details class="advanced-settings">
-                    <summary>Advanced Settings</summary>
-                    <div class="settings-content">
-                        <label for="peer-server-host">PeerJS Server Host</label>
+                    <p>Enter your partner's code:</p>
+                    <div class="link-box">
                         <input type="text"
-                               id="peer-server-host"
-                               placeholder="0.peerjs.com">
-                        <label for="peer-server-port">Port</label>
-                        <input type="number"
-                               id="peer-server-port"
-                               placeholder="443">
-                        <button id="save-peer-settings-btn"
-                                class="btn btn-secondary">Save Settings</button>
+                               id="room-code-input"
+                               placeholder="e.g. a7x2k9m1">
+                        <button id="join-room-btn"
+                                class="btn btn-small">Connect</button>
                     </div>
-                </details>
+                </div>
             </div>
         </div>
 
@@ -255,7 +247,6 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script type="module"
             src="app.js"></script>
 
