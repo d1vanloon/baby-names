@@ -1,7 +1,7 @@
 {
   "name": "Baby Names Picker",
   "short_name": "Baby Names",
-  "description": "A fun, Tinder-style baby name picker. Swipe right to like names, connect with your partner to find matches!",
+  "description": "A fun, Tinder-style baby name picker. Swipe right to like names, connect with your spouse to find matches!",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

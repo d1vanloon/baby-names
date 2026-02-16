@@ -12,7 +12,7 @@ vi.mock('../storage.js', () => ({
 
 vi.mock('../peerSession.js', () => ({
     isConnected: vi.fn(() => false),
-    getPartnerLikes: vi.fn(() => new Set())
+    getSpouseLikes: vi.fn(() => new Set())
 }));
 
 vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
@@ -32,7 +32,7 @@ import {
 } from '../nameData.js';
 
 import { getViewed, markViewed, clearViewed, getLikes } from '../storage.js';
-import { isConnected, getPartnerLikes } from '../peerSession.js';
+import { isConnected, getSpouseLikes } from '../peerSession.js';
 
 describe('nameData.js', () => {
     beforeEach(() => {
@@ -126,8 +126,8 @@ describe('nameData.js', () => {
         });
     });
 
-    describe('partner likes integration', () => {
-        it('should not mix partner likes when not connected', async () => {
+    describe('spouse likes integration', () => {
+        it('should not mix spouse likes when not connected', async () => {
             isConnected.mockReturnValue(false);
             
             await loadNameData();
@@ -136,9 +136,9 @@ describe('nameData.js', () => {
             expect(names.length).toBeGreaterThan(0);
         });
 
-        it('should mix partner likes when connected', async () => {
+        it('should mix spouse likes when connected', async () => {
             isConnected.mockReturnValue(true);
-            getPartnerLikes.mockReturnValue(new Set(['Olivia']));
+            getSpouseLikes.mockReturnValue(new Set(['Olivia']));
 
             await loadNameData();
 

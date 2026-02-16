@@ -9,11 +9,11 @@ Baby Names Picker is an interactive web app that helps expecting parents find th
 ### Key Features
 
 - **Tinder-Style Swiping**: Swipe right to like names, left to skip
-- **Real-Time Partner Connection**: Connect with your partner to sync likes and discover matches instantly
+- **Real-Time Spouse Connection**: Connect with your spouse to sync likes and discover matches instantly
 - **Thousands of Names**: Database of popular baby names from 1880-2024 (filtered to names with 5,000+ occurrences)
 - **Personalized Display**: Enter your last name to see how full names look
-- **Match Celebrations**: Beautiful animations when you and your partner both like the same name
-- **Session Persistence**: Your likes and partner connections are saved locally
+- **Match Celebrations**: Beautiful animations when you and your spouse both like the same name
+- **Session Persistence**: Your likes and spouse connections are saved locally
 
 ## How to Run
 
@@ -49,11 +49,11 @@ Then open `http://localhost:8000` in your browser.
 4. Swipe left (or click the X) to skip a name
 5. Click the heart icon to view your liked names anytime
 
-### Partner Mode
+### Spouse Mode
 1. Click the link icon (🔗) in the header
 2. Copy the generated session link
-3. Share the link with your partner
-4. When your partner opens the link, you'll be connected
+3. Share the link with your spouse
+4. When your spouse opens the link, you'll be connected
 5. Both of you can swipe independently
 6. When you both like the same name, you'll see a match celebration!
 7. View your mutual matches by clicking the "Matches" button
@@ -65,7 +65,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ## Technical Details
 
 - **Pure JavaScript**: No frameworks, vanilla JS with ES6 modules
-- **PeerJS**: Real-time WebRTC peer-to-peer connections for partner syncing
+- **WebRTC (ntfy)**: Real-time WebRTC peer-to-peer connections for spouse syncing
 - **LocalStorage**: Persistent storage for likes and settings
 - **Responsive Design**: Works on desktop and mobile devices
 - **Vitest**: Unit testing framework with jsdom for DOM testing
@@ -73,7 +73,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ## Browser Requirements
 
 - Modern browser with ES6 module support (Chrome, Firefox, Safari, Edge)
-- WebRTC support required for partner connection feature
+- WebRTC support required for spouse connection feature
 - LocalStorage support for saving likes
 
 ## Project Structure
@@ -84,7 +84,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ├── nameData.js         # Name data loading and management
 ├── swipeCard.js        # Swipe gesture handling
 ├── likesManager.js     # Likes list management
-├── peerSession.js      # Partner connection via WebRTC
+├── peerSession.js      # Spouse connection via WebRTC
 ├── matchAnimation.js   # Match celebration animations
 ├── storage.js          # LocalStorage utilities
 ├── styles.css          # Application styles

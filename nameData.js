@@ -3,7 +3,7 @@
  */
 
 import { getViewed, markViewed, clearViewed } from './storage.js';
-import { isConnected, getPartnerLikes } from './peerSession.js';
+import { isConnected, getSpouseLikes } from './peerSession.js';
 
 // Years to load (1880-2024)
 const YEARS_TO_LOAD = Array.from({ length: 145 }, (_, i) => 1880 + i);
@@ -94,35 +94,35 @@ export function resetQueue() {
 
 /**
  * Get the next names to display (for card stack)
- * Mixes in partner-liked names when connected
+ * Mixes in spouse-liked names when connected
  * @param {number} count - Number of names to peek
  * @returns {string[]}
  */
 export function peekNextNames(count = 3) {
     if (isConnected()) {
-        ensurePartnerLikesMixedIn(count);
+        ensureSpouseLikesMixedIn(count);
     }
     return nameQueue.slice(0, count);
 }
 
 /**
- * Ensure a partner-liked name is in the upcoming cards
+ * Ensure a spouse-liked name is in the upcoming cards
  * @param {number} lookahead - Number of cards to check
  */
-function ensurePartnerLikesMixedIn(lookahead) {
-    const partnerLikes = getPartnerLikes();
+function ensureSpouseLikesMixedIn(lookahead) {
+    const spouseLikes = getSpouseLikes();
 
-    // Check if we already have a partner like in the lookahead range
+    // Check if we already have a spouse like in the lookahead range
     for (let i = 0; i < Math.min(nameQueue.length, lookahead); i++) {
-        if (partnerLikes.has(nameQueue[i])) {
+        if (spouseLikes.has(nameQueue[i])) {
             return; // Already have one coming up
         }
     }
 
-    // Find the first available partner like in the rest of the queue
+    // Find the first available spouse like in the rest of the queue
     let foundIndex = -1;
     for (let i = lookahead; i < nameQueue.length; i++) {
-        if (partnerLikes.has(nameQueue[i])) {
+        if (spouseLikes.has(nameQueue[i])) {
             foundIndex = i;
             break;
         }
