@@ -12,7 +12,7 @@ import {
     initPeerSession,
     getConnectionStatus,
     getMatches,
-    getPartnerLikes,
+    getSpouseLikes,
     isConnected,
     hasStoredSession,
     getCurrentTopic,
@@ -93,9 +93,9 @@ describe('peerSession.js - pure functions', () => {
         });
     });
 
-    describe('getPartnerLikes', () => {
-        it('should return empty set when no partner', () => {
-            const likes = getPartnerLikes();
+    describe('getSpouseLikes', () => {
+        it('should return empty set when no spouse', () => {
+            const likes = getSpouseLikes();
             expect(likes).toBeInstanceOf(Set);
             expect(likes.size).toBe(0);
         });
@@ -108,7 +108,7 @@ describe('peerSession.js - pure functions', () => {
             expect(matches).toEqual([]);
         });
 
-        it('should return empty array when no partner likes', () => {
+        it('should return empty array when no spouse likes', () => {
             getLikes.mockReturnValue(['Emma', 'Olivia']);
             const matches = getMatches();
             expect(matches).toEqual([]);
@@ -141,7 +141,7 @@ describe('peerSession.js - pure functions', () => {
     });
 
     describe('joinSession', () => {
-        it('should transition to connected after partner message', async () => {
+        it('should transition to connected after spouse message', async () => {
             const statusChanges = [];
             const connectionChanges = [];
 
@@ -165,7 +165,7 @@ describe('peerSession.js - pure functions', () => {
                 message: JSON.stringify({
                     type: 'likes',
                     likes: [],
-                    senderId: 'partner-id'
+                    senderId: 'spouse-id'
                 })
             });
 

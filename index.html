@@ -6,7 +6,7 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
     <meta name="description"
-          content="A fun, Tinder-style baby name picker. Swipe right to like names, connect with your partner to find matches!">
+          content="A fun, Tinder-style baby name picker. Swipe right to like names, connect with your spouse to find matches!">
     <meta name="theme-color"
           content="#ff4d6d">
 
@@ -84,7 +84,7 @@
                     </button>
                     <button id="session-btn"
                             class="btn btn-icon"
-                            title="Connect with Partner">
+                            title="Connect with Spouse">
                         <span class="icon">🔗</span>
                     </button>
                 </div>
@@ -119,7 +119,7 @@
             <!-- Connection status bar -->
             <div id="connection-bar"
                  class="connection-bar hidden">
-                <span id="connection-status">🔗 Connected with partner</span>
+                <span id="connection-status">🔗 Connected with spouse</span>
                 <button id="matches-btn"
                         class="btn btn-small">Matches <span id="matches-count">0</span></button>
                 <button id="disconnect-btn"
@@ -178,7 +178,7 @@
             <div class="modal-content glass-card">
                 <button id="close-modal-btn"
                         class="btn btn-icon modal-close">✕</button>
-                <h2>Partner Connection</h2>
+                <h2>Spouse Connection</h2>
 
                 <!-- Status indicator -->
                 <div id="session-status"
@@ -191,7 +191,7 @@
                 <!-- Connected state -->
                 <div id="session-connected"
                      class="session-section hidden">
-                    <p class="success-text">✅ Connected to partner!</p>
+                    <p class="success-text">✅ Connected to spouse!</p>
                     <p class="muted">Your likes are being synced in real-time.</p>
                     <button id="modal-disconnect-btn"
                             class="btn btn-danger">Disconnect</button>
@@ -200,7 +200,7 @@
                 <!-- Connection code section - always visible -->
                 <div id="session-room-section"
                      class="session-section">
-                    <p>Share this connection code with your partner:</p>
+                    <p>Share this connection code with your spouse:</p>
                     <div class="link-box">
                         <input type="text"
                                id="session-code"
@@ -220,7 +220,7 @@
                     <div class="divider">
                         <span>or</span>
                     </div>
-                    <p>Enter your partner's code:</p>
+                    <p>Enter your spouse's code:</p>
                     <div class="link-box">
                         <input type="text"
                                id="room-code-input"

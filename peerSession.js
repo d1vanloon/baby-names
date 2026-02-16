@@ -14,12 +14,12 @@ const NTFY_HOST = 'ntfy.sh';
 
 let socket = null;
 let currentTopic = null;
-let partnerLikes = new Set();
+let spouseLikes = new Set();
 let onMatchFound = null;
 let onConnectionChange = null;
 let onMatchesUpdated = null;
 let onStatusChange = null;
-let hasPartnerJoined = false;
+let hasSpouseJoined = false;
 
 let reconnectAttempt = 0;
 let reconnectTimer = null;
@@ -119,10 +119,10 @@ function connectWebSocket(topic) {
     setStatus(ConnectionStatus.CONNECTING, 'Connecting...');
 
     if (socket && socket.readyState === WebSocket.OPEN && currentTopic === topic) {
-        if (hasPartnerJoined) {
-            setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
+        if (hasSpouseJoined) {
+            setStatus(ConnectionStatus.CONNECTED, 'Connected to spouse');
         } else {
-            setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for partner...');
+            setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for spouse...');
         }
         return Promise.resolve(socket);
     }
@@ -172,10 +172,10 @@ function connectWebSocket(topic) {
             clearTimeout(timeout);
             console.log('[ntfy] WebSocket connected to topic:', topic);
 
-            if (hasPartnerJoined) {
-                setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
+            if (hasSpouseJoined) {
+                setStatus(ConnectionStatus.CONNECTED, 'Connected to spouse');
             } else {
-                setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for partner...');
+                setStatus(ConnectionStatus.IN_ROOM, 'Ready to connect, waiting for spouse...');
             }
 
             settled = true;
@@ -229,9 +229,9 @@ function connectWebSocket(topic) {
             connectPromise = null;
 
             if (currentTopic) {
-                const wasPartnerConnected = hasPartnerJoined;
-                hasPartnerJoined = false;
-                if (wasPartnerConnected && onConnectionChange) {
+                const wasSpouseConnected = hasSpouseJoined;
+                hasSpouseJoined = false;
+                if (wasSpouseConnected && onConnectionChange) {
                     onConnectionChange(false);
                 }
                 setStatus(ConnectionStatus.CONNECTING, 'Reconnecting...');
@@ -287,7 +287,7 @@ function scheduleReconnect() {
                 if (reconnectAttempt >= RECONNECT_CONFIG.maxAttempts) {
                     isReconnecting = false;
                     reconnectAttempt = 0;
-                    setStatus(ConnectionStatus.IN_ROOM, 'Partner unavailable');
+                    setStatus(ConnectionStatus.IN_ROOM, 'Spouse unavailable');
                     return;
                 }
 
@@ -331,22 +331,22 @@ function handleMessage(data) {
         return;
     }
 
-    if (!hasPartnerJoined) {
-        hasPartnerJoined = true;
-        setStatus(ConnectionStatus.CONNECTED, 'Connected to partner');
+    if (!hasSpouseJoined) {
+        hasSpouseJoined = true;
+        setStatus(ConnectionStatus.CONNECTED, 'Connected to spouse');
         if (onConnectionChange) {
             onConnectionChange(true);
         }
     }
 
     if (data.type === 'likes') {
-        partnerLikes = new Set(data.likes);
+        spouseLikes = new Set(data.likes);
         updateMatches();
         sendLikes();
     } else if (data.type === 'like') {
         const name = data.name;
-        const wasNew = !partnerLikes.has(name);
-        partnerLikes.add(name);
+        const wasNew = !spouseLikes.has(name);
+        spouseLikes.add(name);
 
         if (wasNew && getLikes().includes(name) && onMatchFound) {
             onMatchFound(name);
@@ -354,14 +354,14 @@ function handleMessage(data) {
 
         updateMatches();
     } else if (data.type === 'unlike') {
-        partnerLikes.delete(data.name);
+        spouseLikes.delete(data.name);
         updateMatches();
     }
 }
 
 function updateMatches() {
     const myLikes = new Set(getLikes());
-    const matches = [...myLikes].filter(name => partnerLikes.has(name));
+    const matches = [...myLikes].filter(name => spouseLikes.has(name));
 
     if (onMatchesUpdated) {
         onMatchesUpdated(matches);
@@ -386,7 +386,7 @@ export async function joinSession(topic) {
     clearReconnectTimer();
     reconnectAttempt = 0;
     isReconnecting = false;
-    hasPartnerJoined = false;
+    hasSpouseJoined = false;
 
     currentTopic = trimmedTopic;
     setSessionTopic(trimmedTopic);
@@ -399,7 +399,7 @@ export async function joinSession(topic) {
         logError(err, 'Join session');
         currentTopic = null;
         clearSessionTopic();
-        hasPartnerJoined = false;
+        hasSpouseJoined = false;
         setStatus(ConnectionStatus.ERROR, getErrorMessage(err));
         throw err;
     }
@@ -445,7 +445,7 @@ export async function notifyLike(name) {
         name: name
     });
 
-    if (partnerLikes.has(name) && onMatchFound) {
+    if (spouseLikes.has(name) && onMatchFound) {
         onMatchFound(name);
     }
 }
@@ -461,15 +461,15 @@ export async function notifyUnlike(name) {
 
 export function getMatches() {
     const myLikes = new Set(getLikes());
-    return [...myLikes].filter(name => partnerLikes.has(name));
+    return [...myLikes].filter(name => spouseLikes.has(name));
 }
 
-export function getPartnerLikes() {
-    return new Set(partnerLikes);
+export function getSpouseLikes() {
+    return new Set(spouseLikes);
 }
 
 export function isConnected() {
-    return hasPartnerJoined;
+    return hasSpouseJoined;
 }
 
 export function isInRoom() {
@@ -511,7 +511,7 @@ export async function disconnect(createNew = true) {
     clearReconnectTimer();
     reconnectAttempt = 0;
     isReconnecting = false;
-    hasPartnerJoined = false;
+    hasSpouseJoined = false;
     connectPromise = null;
 
     clearSessionTopic();
@@ -522,7 +522,7 @@ export async function disconnect(createNew = true) {
     }
 
     currentTopic = null;
-    partnerLikes.clear();
+    spouseLikes.clear();
 
     if (createNew) {
         setStatus(ConnectionStatus.CONNECTING, 'Creating new connection...');
@@ -550,7 +550,7 @@ export async function initializeAndReconnect() {
     if (topic) {
         try {
             nextSessionGeneration();
-            hasPartnerJoined = false;
+            hasSpouseJoined = false;
             await connectWebSocket(topic);
             sendLikes();
         } catch (err) {

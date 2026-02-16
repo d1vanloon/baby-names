@@ -147,7 +147,7 @@ function escapeHtml(str) {
 ## Browser Support
 
 - Modern browsers with ES6 module support
-- WebRTC required for partner connections
+- WebRTC required for spouse connections
 - LocalStorage required for persistence
 - Service Worker for offline functionality
 
@@ -157,5 +157,5 @@ None. Configuration stored in LocalStorage via `storage.js`.
 
 ## Git Conventions
 
-- Commit messages: Present tense, descriptive (e.g., "Add partner reconnection logic")
+- Commit messages: Present tense, descriptive (e.g., "Add spouse reconnection logic")
 - No pre-commit hooks configured

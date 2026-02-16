@@ -190,7 +190,7 @@ function handleSwipeRight() {
         addLike(name);
         updateLikesCount();
 
-        // Notify partner if connected
+        // Notify spouse if connected
         if (isConnected()) {
             notifyLike(name);
         }
@@ -243,7 +243,7 @@ function handleConnectionChange(connected) {
     elements.connectionBar.classList.toggle('hidden', !connected);
 
     if (connected) {
-        elements.connectionStatus.textContent = '🔗 Connected with partner';
+        elements.connectionStatus.textContent = '🔗 Connected with spouse';
     }
 
     // Update session modal buttons
@@ -268,12 +268,12 @@ function handleStatusChange(status, message) {
             break;
         case ConnectionStatus.IN_ROOM:
             iconEl.textContent = '📡';
-            textEl.textContent = message || 'Ready to connect, waiting for partner...';
+            textEl.textContent = message || 'Ready to connect, waiting for spouse...';
             break;
         case ConnectionStatus.CONNECTED:
             statusEl.classList.add('status-connected');
             iconEl.textContent = '✅';
-            textEl.textContent = message || 'Connected to partner!';
+            textEl.textContent = message || 'Connected to spouse!';
             if (!elements.sessionModal.classList.contains('hidden')) {
                 updateSessionModalState();
             }
