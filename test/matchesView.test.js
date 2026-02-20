@@ -22,6 +22,29 @@ describe('matchesView.js', () => {
         expect(document.getElementById('matches-count').textContent).toBe('3');
     });
 
+    it('adds pop class when count increments and removes it on animation end', () => {
+        const countEl = document.getElementById('matches-count');
+
+        updateMatchesCount(1);
+        expect(countEl.classList.contains('matches-count-pop')).toBe(true);
+
+        countEl.dispatchEvent(new Event('animationend'));
+        expect(countEl.classList.contains('matches-count-pop')).toBe(false);
+    });
+
+    it('does not add pop class when count stays the same or decreases', () => {
+        const countEl = document.getElementById('matches-count');
+
+        updateMatchesCount(1);
+        countEl.dispatchEvent(new Event('animationend'));
+
+        updateMatchesCount(1);
+        expect(countEl.classList.contains('matches-count-pop')).toBe(false);
+
+        updateMatchesCount(0);
+        expect(countEl.classList.contains('matches-count-pop')).toBe(false);
+    });
+
     it('renders empty state when no matches', () => {
         renderMatchesList([], 'Smith');
 
