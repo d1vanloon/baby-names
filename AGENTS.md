@@ -33,7 +33,10 @@ npm run test:watch
 Tests are located in the `test/` directory:
 - `test/storage.test.js` - LocalStorage operations
 - `test/nameData.test.js` - Name queue management
-- `test/ntfySession.test.js` - ntfy session pure functions
+- `test/ntfySession.test.js` - ntfy session behaviors
+- `test/sessionSync.test.js` - Sync batching and match logic
+- `test/sessionModal.test.js` - Session/connection UI state handling
+- `test/matchesView.test.js` - Matches list rendering
 - `test/utils.test.js` - Utility functions (escapeHtml)
 
 ### Linting/Formatting
@@ -130,8 +133,12 @@ function escapeHtml(str) {
 ├── swipeCard.js        # Touch/mouse swipe gestures
 ├── likesManager.js     # Likes list UI management
 ├── ntfySession.js      # ntfy-based room sync (pub/sub)
+├── sessionSync.js      # Match/sync state and batching logic
+├── sessionModal.js     # Session modal and connection bar UI management
+├── matchesView.js      # Matches screen UI management
 ├── matchAnimation.js   # Match celebration UI
 ├── storage.js          # LocalStorage utilities
+├── utils.js            # Shared utility functions
 ├── service-worker.js   # PWA service worker
 ├── styles.css          # Application styles
 ├── manifest.json       # PWA manifest

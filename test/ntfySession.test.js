@@ -186,7 +186,7 @@ describe('ntfySession.js', () => {
         await new Promise((resolve) => setTimeout(resolve, 450));
     });
 
-    it('disconnects and auto-creates a fresh room', async () => {
+    it('disconnects and clears active room', async () => {
         await joinSession('a7x2k9m1');
         await flushAsync();
 
@@ -194,7 +194,7 @@ describe('ntfySession.js', () => {
         await flushAsync();
 
         expect(storageMocks.clearSessionTopic).toHaveBeenCalled();
-        expect(getCurrentTopic()).toMatch(/^[a-z0-9]{8}$/);
-        expect(storageMocks.setSessionTopic).toHaveBeenCalledTimes(2);
+        expect(getCurrentTopic()).toBeNull();
+        expect(storageMocks.setSessionTopic).toHaveBeenCalledTimes(1);
     });
 });

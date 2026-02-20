@@ -3,13 +3,13 @@
  */
 
 import { getViewed, markViewed, clearViewed } from './storage.js';
-import { isConnected, getSpouseLikes } from './ntfySession.js';
 
 // Years to load (1880-2024)
 const YEARS_TO_LOAD = Array.from({ length: 145 }, (_, i) => 1880 + i);
 
 // Minimum occurrences filter
 const MIN_OCCURRENCES = 5000;
+const FETCH_BATCH_SIZE = 10;
 
 // Cache for loaded names
 let allNames = [];
@@ -23,35 +23,49 @@ let nameQueue = [];
 export async function loadNameData(onProgress) {
     const nameMap = new Map();
     const totalYears = YEARS_TO_LOAD.length;
+    let completedYears = 0;
 
-    for (let i = 0; i < YEARS_TO_LOAD.length; i++) {
-        const year = YEARS_TO_LOAD[i];
-        const progress = Math.round(((i + 1) / totalYears) * 100);
+    for (let i = 0; i < YEARS_TO_LOAD.length; i += FETCH_BATCH_SIZE) {
+        const years = YEARS_TO_LOAD.slice(i, i + FETCH_BATCH_SIZE);
 
-        if (onProgress) {
-            onProgress(progress);
-        }
+        const batchMaps = await Promise.all(years.map(async (year) => {
+            const yearlyMap = new Map();
 
-        try {
-            const response = await fetch(`data/yob${year}.txt`);
-            if (!response.ok) continue;
+            try {
+                const response = await fetch(`data/yob${year}.txt`);
+                if (!response.ok) {
+                    return yearlyMap;
+                }
 
-            const text = await response.text();
-            const lines = text.trim().split('\n');
+                const text = await response.text();
+                const lines = text.trim().split('\n');
 
-            for (const line of lines) {
-                const parts = line.trim().split(',');
-                if (parts.length < 3) continue;
+                for (const line of lines) {
+                    const parts = line.trim().split(',');
+                    if (parts.length < 3) continue;
 
-                const name = parts[0].trim();
-                const count = parseInt(parts[2], 10);
+                    const name = parts[0].trim();
+                    const count = parseInt(parts[2], 10);
+                    const existing = yearlyMap.get(name) || 0;
+                    yearlyMap.set(name, existing + count);
+                }
+            } catch (err) {
+                console.warn(`Failed to load data for year ${year}:`, err);
+            } finally {
+                completedYears += 1;
+                if (onProgress) {
+                    onProgress(Math.round((completedYears / totalYears) * 100));
+                }
+            }
 
-                // Aggregate counts across years
+            return yearlyMap;
+        }));
+
+        for (const yearlyMap of batchMaps) {
+            for (const [name, count] of yearlyMap) {
                 const existing = nameMap.get(name) || 0;
                 nameMap.set(name, existing + count);
             }
-        } catch (err) {
-            console.warn(`Failed to load data for year ${year}:`, err);
         }
     }
 
@@ -94,48 +108,44 @@ export function resetQueue() {
 
 /**
  * Get the next names to display (for card stack)
- * Mixes in spouse-liked names when connected
  * @param {number} count - Number of names to peek
  * @returns {string[]}
  */
 export function peekNextNames(count = 3) {
-    if (isConnected()) {
-        ensureSpouseLikesMixedIn(count);
-    }
     return nameQueue.slice(0, count);
 }
 
 /**
- * Ensure a spouse-liked name is in the upcoming cards
- * @param {number} lookahead - Number of cards to check
+ * Move a priority name into upcoming cards if needed
+ * @param {Iterable<string>} priorityNames
+ * @param {number} lookahead
  */
-function ensureSpouseLikesMixedIn(lookahead) {
-    const spouseLikes = getSpouseLikes();
+export function insertPriorityNames(priorityNames, lookahead = 3) {
+    const prioritySet = new Set(priorityNames || []);
+    if (prioritySet.size === 0 || nameQueue.length === 0) {
+        return;
+    }
 
-    // Check if we already have a spouse like in the lookahead range
     for (let i = 0; i < Math.min(nameQueue.length, lookahead); i++) {
-        if (spouseLikes.has(nameQueue[i])) {
-            return; // Already have one coming up
+        if (prioritySet.has(nameQueue[i])) {
+            return;
         }
     }
 
-    // Find the first available spouse like in the rest of the queue
     let foundIndex = -1;
     for (let i = lookahead; i < nameQueue.length; i++) {
-        if (spouseLikes.has(nameQueue[i])) {
+        if (prioritySet.has(nameQueue[i])) {
             foundIndex = i;
             break;
         }
     }
 
     if (foundIndex !== -1) {
-        // Move it to the 2nd slot (index 1) to "mix it in"
-        // If queue is short, just append or put as deep as possible
         const targetIndex = Math.min(nameQueue.length - 1, 2);
 
         const name = nameQueue[foundIndex];
-        nameQueue.splice(foundIndex, 1); // Remove from old spot
-        nameQueue.splice(targetIndex, 0, name); // Insert at target
+        nameQueue.splice(foundIndex, 1);
+        nameQueue.splice(targetIndex, 0, name);
     }
 }
 

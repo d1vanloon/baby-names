@@ -2,6 +2,8 @@
  * Swipe card component with touch and mouse gesture support
  */
 
+import { escapeHtml } from './utils.js';
+
 // Swipe threshold in pixels
 const SWIPE_THRESHOLD = 100;
 
@@ -17,6 +19,7 @@ let dragCard = null;
 // Callbacks
 let onSwipeLeft = null;
 let onSwipeRight = null;
+let cardStackEl = null;
 
 // Track if global listeners are set up
 let globalListenersAttached = false;
@@ -26,10 +29,12 @@ let globalListenersAttached = false;
  * @param {Object} callbacks
  * @param {Function} callbacks.onSwipeLeft
  * @param {Function} callbacks.onSwipeRight
+ * @param {HTMLElement} callbacks.cardStack
  */
 export function initSwipeHandlers(callbacks) {
     onSwipeLeft = callbacks.onSwipeLeft;
     onSwipeRight = callbacks.onSwipeRight;
+    cardStackEl = callbacks.cardStack;
 
     // Set up global document listeners once
     if (!globalListenersAttached) {
@@ -69,17 +74,6 @@ export function createCard(firstName, lastName, isTop = false) {
     }
 
     return card;
-}
-
-/**
- * Escape HTML to prevent XSS
- * @param {string} str
- * @returns {string}
- */
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 /**
@@ -244,8 +238,7 @@ function animateSwipeOut(card, direction) {
  * @param {'left'|'right'} direction
  */
 export function triggerSwipe(direction) {
-    const cardStack = document.getElementById('card-stack');
-    const topCard = cardStack?.querySelector('.name-card:first-child');
+    const topCard = cardStackEl?.querySelector('.name-card:first-child');
 
     if (!topCard || topCard.dataset.interactive !== 'true') return;
 
@@ -256,16 +249,4 @@ export function triggerSwipe(direction) {
     setTimeout(() => {
         animateSwipeOut(topCard, direction);
     }, 100);
-}
-
-/**
- * Remove drag listeners from document (cleanup)
- */
-export function cleanupSwipeListeners() {
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-    document.removeEventListener('touchmove', handleTouchMove);
-    document.removeEventListener('touchend', handleTouchEnd);
-    document.removeEventListener('touchcancel', handleTouchEnd);
-    globalListenersAttached = false;
 }

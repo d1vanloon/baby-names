@@ -85,13 +85,20 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ├── swipeCard.js        # Swipe gesture handling
 ├── likesManager.js     # Likes list management
 ├── ntfySession.js      # ntfy-based room sync (pub/sub)
+├── sessionSync.js      # Sync batching and match state management
+├── sessionModal.js     # Session modal and connection bar UI
+├── matchesView.js      # Matches screen UI rendering
 ├── matchAnimation.js   # Match celebration animations
 ├── storage.js          # LocalStorage utilities
+├── utils.js            # Shared utility functions
 ├── styles.css          # Application styles
 ├── test/               # Unit tests
 │   ├── storage.test.js
 │   ├── nameData.test.js
-│   ├── peerSession.test.js
+│   ├── ntfySession.test.js
+│   ├── sessionSync.test.js
+│   ├── sessionModal.test.js
+│   ├── matchesView.test.js
 │   └── utils.test.js
 └── data/               # Baby name data files (yobYYYY.txt)
     ├── yob1880.txt
@@ -121,7 +128,10 @@ npm run test:watch
 Tests cover:
 - LocalStorage operations (`test/storage.test.js`)
 - Name queue management (`test/nameData.test.js`)
-- ntfy session pure functions (`test/ntfySession.test.js`)
+- ntfy session behaviors (`test/ntfySession.test.js`)
+- sync batching and match logic (`test/sessionSync.test.js`)
+- session UI state handling (`test/sessionModal.test.js`)
+- matches UI rendering (`test/matchesView.test.js`)
 - Utility functions (`test/utils.test.js`)
 
 ## Credits

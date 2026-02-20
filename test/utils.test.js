@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { escapeHtml } from '../likesManager.js';
+import { escapeHtml } from '../utils.js';
 
 describe('escapeHtml', () => {
     it('should be a function', () => {

@@ -5,15 +5,14 @@
 import {
     getLastName,
     setLastName,
-    getLikes,
     addLike
 } from './storage.js';
 
 import {
     loadNameData,
     peekNextNames,
+    insertPriorityNames,
     consumeCurrentName,
-    hasMoreNames,
     resetAllNames
 } from './nameData.js';
 
@@ -35,15 +34,13 @@ import {
     getRoomFromUrl,
     clearRoomParam,
     joinSession,
-    createNewSession,
     notifyLike,
     isConnected,
     isInRoom,
     disconnect,
-    getMatches,
     getCurrentTopic,
     getStoredSessionTopic,
-    ConnectionStatus,
+    getSpouseLikes,
     initializeAndReconnect
 } from './ntfySession.js';
 
@@ -51,6 +48,19 @@ import {
     initMatchAnimation,
     showMatchAnimation
 } from './matchAnimation.js';
+
+import {
+    initMatchesView,
+    renderMatchesList,
+    updateMatchesCount
+} from './matchesView.js';
+
+import {
+    initSessionModal,
+    updateSessionModalState,
+    handleConnectionChange,
+    handleStatusChange
+} from './sessionModal.js';
 
 // ========================================
 // DOM Elements
@@ -83,10 +93,10 @@ const elements = {
     sessionBtn: document.getElementById('session-btn'),
 
     // Connection bar
-    connectionBar: document.getElementById('connection-bar'),
-    connectionStatus: document.getElementById('connection-status'),
     matchesBtn: document.getElementById('matches-btn'),
     matchesCount: document.getElementById('matches-count'),
+    connectionBar: document.getElementById('connection-bar'),
+    connectionStatus: document.getElementById('connection-status'),
     disconnectBtn: document.getElementById('disconnect-btn'),
 
     // Likes screen
@@ -102,18 +112,16 @@ const elements = {
     // Session modal
     sessionModal: document.getElementById('session-modal'),
     closeModalBtn: document.getElementById('close-modal-btn'),
-    sessionRoomSection: document.getElementById('session-room-section'),
     sessionCode: document.getElementById('session-code'),
     copyCodeBtn: document.getElementById('copy-code-btn'),
     copyLinkBtn: document.getElementById('copy-link-btn'),
-    disconnectBtn: document.getElementById('disconnect-btn'),
-    sessionJoinSection: document.getElementById('session-join-section'),
     roomCodeInput: document.getElementById('room-code-input'),
     joinRoomBtn: document.getElementById('join-room-btn'),
     sessionStatus: document.getElementById('session-status'),
     sessionStatusIcon: document.getElementById('session-status-icon'),
     sessionStatusText: document.getElementById('session-status-text'),
     sessionConnected: document.getElementById('session-connected'),
+    sessionResetBtn: document.getElementById('session-reset-btn'),
     modalDisconnectBtn: document.getElementById('modal-disconnect-btn'),
 
     // Match animation
@@ -127,6 +135,7 @@ const elements = {
 // ========================================
 let currentLastName = '';
 let currentMatches = [];
+let pendingRoomCode = null;
 
 // ========================================
 // Screen Management
@@ -146,6 +155,10 @@ function showScreen(screenName) {
 // ========================================
 function renderCardStack(animate = false) {
     elements.cardStack.innerHTML = '';
+
+    if (isConnected()) {
+        insertPriorityNames(getSpouseLikes(), 3);
+    }
 
     const names = peekNextNames(3);
 
@@ -212,111 +225,7 @@ function handleMatchFound(name) {
 
 function handleMatchesUpdated(matches) {
     currentMatches = matches;
-    elements.matchesCount.textContent = matches.length;
-}
-
-function renderMatchesList() {
-    elements.matchesList.innerHTML = '';
-
-    if (currentMatches.length === 0) {
-        elements.matchesEmpty.classList.remove('hidden');
-        elements.matchesList.classList.add('hidden');
-    } else {
-        elements.matchesEmpty.classList.add('hidden');
-        elements.matchesList.classList.remove('hidden');
-
-        for (const name of currentMatches) {
-            const item = document.createElement('div');
-            item.className = 'name-item';
-            item.innerHTML = `
-                <span class="name-item-text">💕 ${escapeHtml(name)} ${escapeHtml(currentLastName)}</span>
-            `;
-            elements.matchesList.appendChild(item);
-        }
-    }
-}
-
-// ========================================
-// Connection
-// ========================================
-function handleConnectionChange(connected) {
-    elements.connectionBar.classList.toggle('hidden', !connected);
-
-    if (connected) {
-        elements.connectionStatus.textContent = '🔗 Connected with spouse';
-    }
-
-    // Update session modal buttons
-    if (!elements.sessionModal.classList.contains('hidden')) {
-        updateSessionModalState();
-    }
-}
-
-function handleStatusChange(status, message) {
-    const statusEl = elements.sessionStatus;
-    const iconEl = elements.sessionStatusIcon;
-    const textEl = elements.sessionStatusText;
-
-    // Remove all status classes
-    statusEl.classList.remove('status-loading', 'status-connected', 'status-error');
-
-    switch (status) {
-        case ConnectionStatus.CONNECTING:
-            statusEl.classList.add('status-loading');
-            iconEl.textContent = '⏳';
-            textEl.textContent = message || 'Connecting...';
-            break;
-        case ConnectionStatus.IN_ROOM:
-            iconEl.textContent = '📡';
-            textEl.textContent = message || 'Ready to connect, waiting for spouse...';
-            break;
-        case ConnectionStatus.CONNECTED:
-            statusEl.classList.add('status-connected');
-            iconEl.textContent = '✅';
-            textEl.textContent = message || 'Connected to spouse!';
-            if (!elements.sessionModal.classList.contains('hidden')) {
-                updateSessionModalState();
-            }
-            break;
-        case ConnectionStatus.ERROR:
-            statusEl.classList.add('status-error');
-            iconEl.textContent = '❌';
-            textEl.textContent = message || 'Connection error';
-            break;
-        case ConnectionStatus.DISCONNECTED:
-        default:
-            iconEl.textContent = '📴';
-            textEl.textContent = message || 'Enter a code to connect or start a new connection';
-            if (!elements.sessionModal.classList.contains('hidden')) {
-                updateSessionModalState();
-            }
-            break;
-    }
-}
-
-// ========================================
-// Session Modal
-// ========================================
-function showSessionModal() {
-    elements.sessionModal.classList.remove('hidden');
-    updateSessionModalState();
-}
-
-function updateSessionModalState() {
-    const topic = getCurrentTopic() || getStoredSessionTopic();
-    const inRoom = isInRoom();
-    const connected = isConnected();
-
-    // Show current room code if in a room
-    if (topic) {
-        elements.sessionCode.value = topic;
-    } else {
-        elements.sessionCode.value = '';
-    }
-}
-
-function hideSessionModal() {
-    elements.sessionModal.classList.add('hidden');
+    updateMatchesCount(matches.length);
 }
 
 // ========================================
@@ -324,13 +233,25 @@ function hideSessionModal() {
 // ========================================
 function setupEventHandlers() {
     // Setup screen
-    elements.startBtn.addEventListener('click', () => {
+    elements.startBtn.addEventListener('click', async () => {
         const lastName = elements.lastNameInput.value.trim();
         if (lastName) {
             setLastName(lastName);
             currentLastName = lastName;
             showScreen('swipe');
             renderCardStack();
+
+            if (pendingRoomCode) {
+                clearRoomParam();
+                try {
+                    await joinSession(pendingRoomCode);
+                    updateSessionModalState();
+                } catch (err) {
+                    console.error('Failed to join room:', err);
+                } finally {
+                    pendingRoomCode = null;
+                }
+            }
         }
     });
 
@@ -361,7 +282,7 @@ function setupEventHandlers() {
     });
 
     elements.matchesBtn.addEventListener('click', () => {
-        renderMatchesList();
+        renderMatchesList(currentMatches, currentLastName);
         showScreen('matches');
     });
 
@@ -369,80 +290,6 @@ function setupEventHandlers() {
         showScreen('swipe');
     });
 
-    // Session modal
-    elements.sessionBtn.addEventListener('click', showSessionModal);
-
-    elements.closeModalBtn.addEventListener('click', hideSessionModal);
-
-    elements.sessionModal.querySelector('.modal-overlay').addEventListener('click', hideSessionModal);
-
-    elements.copyCodeBtn.addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(elements.sessionCode.value);
-            elements.copyCodeBtn.textContent = 'Copied!';
-            setTimeout(() => {
-                elements.copyCodeBtn.textContent = 'Copy';
-            }, 2000);
-        } catch (err) {
-            // Fallback for older browsers
-            elements.sessionCode.select();
-            document.execCommand('copy');
-        }
-    });
-
-    elements.copyLinkBtn.addEventListener('click', async () => {
-        try {
-            const link = await generateShareLink();
-            await navigator.clipboard.writeText(link);
-            elements.copyLinkBtn.textContent = 'Copied!';
-            setTimeout(() => {
-                elements.copyLinkBtn.textContent = 'Copy Link';
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy link:', err);
-        }
-    });
-
-    // Join room button
-    elements.joinRoomBtn.addEventListener('click', async () => {
-        const roomCode = elements.roomCodeInput.value.trim();
-        if (roomCode) {
-            try {
-                await joinSession(roomCode);
-                elements.roomCodeInput.value = '';
-                updateSessionModalState();
-            } catch (err) {
-                console.error('Failed to join room:', err);
-                alert('Failed to join room. Please check the code and try again.');
-            }
-        }
-    });
-
-    // Allow Enter key to join room
-    elements.roomCodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            elements.joinRoomBtn.click();
-        }
-    });
-
-    // Disconnect
-    elements.disconnectBtn.addEventListener('click', async () => {
-        await disconnect();
-    });
-
-    // Modal disconnect button
-    elements.modalDisconnectBtn.addEventListener('click', async () => {
-        await disconnect();
-    });
-}
-
-// ========================================
-// Utilities
-// ========================================
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 // ========================================
@@ -452,7 +299,8 @@ async function init() {
     // Initialize modules
     initSwipeHandlers({
         onSwipeLeft: handleSwipeLeft,
-        onSwipeRight: handleSwipeRight
+        onSwipeRight: handleSwipeRight,
+        cardStack: elements.cardStack
     });
 
     initLikesManager({
@@ -460,6 +308,39 @@ async function init() {
         likesEmpty: elements.likesEmpty,
         likesCount: elements.likesCount
     }, updateLikesCount);
+
+    initMatchesView({
+        matchesList: elements.matchesList,
+        matchesEmpty: elements.matchesEmpty,
+        matchesCount: elements.matchesCount
+    });
+
+    initSessionModal({
+        sessionBtn: elements.sessionBtn,
+        sessionModal: elements.sessionModal,
+        closeModalBtn: elements.closeModalBtn,
+        sessionCode: elements.sessionCode,
+        copyCodeBtn: elements.copyCodeBtn,
+        copyLinkBtn: elements.copyLinkBtn,
+        roomCodeInput: elements.roomCodeInput,
+        joinRoomBtn: elements.joinRoomBtn,
+        sessionStatus: elements.sessionStatus,
+        sessionStatusIcon: elements.sessionStatusIcon,
+        sessionStatusText: elements.sessionStatusText,
+        sessionConnected: elements.sessionConnected,
+        connectionBar: elements.connectionBar,
+        connectionStatus: elements.connectionStatus,
+        disconnectBtn: elements.disconnectBtn,
+        modalDisconnectBtn: elements.modalDisconnectBtn,
+        sessionResetBtn: elements.sessionResetBtn,
+        onJoinSession: joinSession,
+        onDisconnect: disconnect,
+        onGenerateShareLink: generateShareLink,
+        getCurrentTopic,
+        getStoredSessionTopic,
+        isInRoom,
+        isConnected
+    });
 
     initPeerSession({
         onMatchFound: handleMatchFound,
@@ -519,18 +400,7 @@ async function init() {
         // New user
         showScreen('setup');
 
-        // Handle room code from URL after setup
-        if (roomCode) {
-            elements.startBtn.addEventListener('click', async () => {
-                clearRoomParam();
-                try {
-                    await joinSession(roomCode);
-                    updateSessionModalState();
-                } catch (err) {
-                    console.error('Failed to join room:', err);
-                }
-            }, { once: true });
-        }
+        pendingRoomCode = roomCode;
     }
 }
 
