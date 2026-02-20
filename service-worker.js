@@ -1,7 +1,7 @@
 // Service Worker for Baby Names Picker
 // Provides offline functionality and caching for all assets
 
-const CACHE_NAME = 'baby-names-v1';
+const CACHE_NAME = 'baby-names-v2';
 
 // List of essential assets to cache
 const STATIC_ASSETS = [
@@ -13,12 +13,11 @@ const STATIC_ASSETS = [
   '/nameData.js',
   '/swipeCard.js',
   '/likesManager.js',
-  '/peerSession.js',
+  '/ntfySession.js',
   '/matchAnimation.js',
   '/manifest.json',
   // External dependencies
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
-  'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap'
 ];
 
 // Data files to cache for offline use
@@ -116,7 +115,7 @@ const ALL_ASSETS = [...STATIC_ASSETS, ...DATA_FILES];
 // Install event - cache all assets
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installing...');
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -136,7 +135,7 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('[Service Worker] Activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
@@ -160,52 +159,38 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
-  
+
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) {
     return;
   }
-  
-  // For same-origin requests, use cache-first strategy
+
+  // For same-origin requests, use network-first strategy
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(request)
-        .then((response) => {
-          if (response) {
-            // Return cached response
-            return response;
-          }
-          
-          // Not in cache, fetch from network
-          return fetch(request)
-            .then((networkResponse) => {
-              // Don't cache if not a valid response
-              if (!networkResponse || networkResponse.status !== 200) {
-                return networkResponse;
-              }
-              
-              // Clone the response and cache it
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  cache.put(request, responseToCache);
-                });
-              
-              return networkResponse;
-            })
-            .catch(() => {
-              // Network failed, return offline fallback if available
-              console.log('[Service Worker] Network fetch failed, no cache available');
+      fetch(request)
+        .then((networkResponse) => {
+          // Optionally update the cache with the latest response
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
             });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // If network fails, try to serve from cache
+          return caches.match(request);
         })
     );
   } else {
-    // For external requests (fonts, peerjs), use stale-while-revalidate
+    // For external requests (fonts), use stale-while-revalidate
     event.respondWith(
       caches.match(request)
         .then((cachedResponse) => {
@@ -223,7 +208,7 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
               console.log('[Service Worker] External fetch failed');
             });
-          
+
           return cachedResponse || fetchPromise;
         })
     );

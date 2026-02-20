@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A vanilla JavaScript PWA for couples to discover baby names together. Uses ES6 modules, PeerJS for real-time connections, and LocalStorage for persistence.
+A vanilla JavaScript PWA for couples to discover baby names together. Uses ES6 modules, ntfy-based room sync for real-time connections, and LocalStorage for persistence.
 
 ## Build/Run Commands
 
@@ -33,7 +33,7 @@ npm run test:watch
 Tests are located in the `test/` directory:
 - `test/storage.test.js` - LocalStorage operations
 - `test/nameData.test.js` - Name queue management
-- `test/peerSession.test.js` - Peer connection pure functions
+- `test/ntfySession.test.js` - ntfy session pure functions
 - `test/utils.test.js` - Utility functions (escapeHtml)
 
 ### Linting/Formatting
@@ -67,7 +67,7 @@ npm install --save-dev eslint prettier
 ```javascript
 // Group imports: built-ins, then external, then internal
 import { something } from './storage.js';  // Always include .js extension
-import { peerSession } from './peerSession.js';
+import { ntfySession } from './ntfySession.js';
 ```
 
 ### Documentation
@@ -129,7 +129,7 @@ function escapeHtml(str) {
 ├── nameData.js         # Data loading and name management
 ├── swipeCard.js        # Touch/mouse swipe gestures
 ├── likesManager.js     # Likes list UI management
-├── peerSession.js      # WebRTC peer connection
+├── ntfySession.js      # ntfy-based room sync (pub/sub)
 ├── matchAnimation.js   # Match celebration UI
 ├── storage.js          # LocalStorage utilities
 ├── service-worker.js   # PWA service worker
@@ -141,7 +141,7 @@ function escapeHtml(str) {
 
 ## Dependencies
 
-- **PeerJS**: Loaded from CDN (`https://unpkg.com/peerjs@1.5.4`)
+- **ntfy**: Uses `ntfy.sh` (configurable via `ntfySession.js`) as the message relay for room topics
 - **Fonts**: Google Fonts (Outfit)
 
 ## Browser Support
