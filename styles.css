@@ -596,6 +596,44 @@ body {
     font-weight: 500;
 }
 
+#matches-count {
+    display: inline-block;
+    position: relative;
+}
+
+#matches-count.matches-count-pop {
+    animation: pulse 380ms ease-out 1;
+}
+
+#matches-count.matches-count-pop::after {
+    content: '♥';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 1rem;
+    color: var(--color-accent-like);
+    pointer-events: none;
+    z-index: 1;
+    animation: matchesCountHeartPop 950ms ease-out 1;
+}
+
+@keyframes matchesCountHeartPop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+    }
+
+    35% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.45);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.35);
+    }
+}
+
 /* ========================================
    Names List (Likes/Matches)
    ======================================== */
