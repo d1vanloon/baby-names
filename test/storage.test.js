@@ -25,6 +25,9 @@ import {
     getSessionTopic,
     setSessionTopic,
     clearSessionTopic,
+    getPartnerLikes,
+    setPartnerLikes,
+    clearPartnerLikes,
     getInstanceId
 } from '../storage.js';
 
@@ -135,6 +138,29 @@ describe('storage.js', () => {
             setSessionTopic('a7x2k9m1');
             clearSessionTopic();
             expect(getSessionTopic()).toBeNull();
+        });
+    });
+
+    describe('partnerLikes', () => {
+        it('should return empty Set when no partner likes are stored', () => {
+            const likes = getPartnerLikes();
+            expect(likes).toBeInstanceOf(Set);
+            expect(likes.size).toBe(0);
+        });
+
+        it('should save and retrieve partner likes', () => {
+            setPartnerLikes(['Emma', 'Olivia']);
+            const likes = getPartnerLikes();
+            expect(likes.has('Emma')).toBe(true);
+            expect(likes.has('Olivia')).toBe(true);
+            expect(likes.size).toBe(2);
+        });
+
+        it('should clear partner likes', () => {
+            setPartnerLikes(['Emma']);
+            clearPartnerLikes();
+            const likes = getPartnerLikes();
+            expect(likes.size).toBe(0);
         });
     });
 

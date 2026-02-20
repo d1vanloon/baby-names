@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
     LIKES: 'babyNames_likes',
     VIEWED: 'babyNames_viewed',
     SESSION_TOPIC: 'babyNames_sessionTopic',
-    SESSION_INSTANCE_ID: 'babyNames_instanceId'
+    SESSION_INSTANCE_ID: 'babyNames_instanceId',
+    PARTNER_LIKES: 'babyNames_partnerLikes'
 };
 
 function generateUuid() {
@@ -121,6 +122,30 @@ export function setSessionTopic(topic) {
  */
 export function clearSessionTopic() {
     localStorage.removeItem(STORAGE_KEYS.SESSION_TOPIC);
+}
+
+/**
+ * Get stored partner likes
+ * @returns {Set<string>}
+ */
+export function getPartnerLikes() {
+    const data = localStorage.getItem(STORAGE_KEYS.PARTNER_LIKES);
+    return data ? new Set(JSON.parse(data)) : new Set();
+}
+
+/**
+ * Save partner likes
+ * @param {string[]} likes
+ */
+export function setPartnerLikes(likes) {
+    localStorage.setItem(STORAGE_KEYS.PARTNER_LIKES, JSON.stringify(likes));
+}
+
+/**
+ * Clear stored partner likes
+ */
+export function clearPartnerLikes() {
+    localStorage.setItem(STORAGE_KEYS.PARTNER_LIKES, JSON.stringify([]));
 }
 
 /**

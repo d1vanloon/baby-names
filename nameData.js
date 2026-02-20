@@ -3,7 +3,7 @@
  */
 
 import { getViewed, markViewed, clearViewed } from './storage.js';
-import { isConnected, getSpouseLikes } from './peerSession.js';
+import { isConnected, getSpouseLikes } from './ntfySession.js';
 
 // Years to load (1880-2024)
 const YEARS_TO_LOAD = Array.from({ length: 145 }, (_, i) => 1880 + i);
@@ -27,7 +27,7 @@ export async function loadNameData(onProgress) {
     for (let i = 0; i < YEARS_TO_LOAD.length; i++) {
         const year = YEARS_TO_LOAD[i];
         const progress = Math.round(((i + 1) / totalYears) * 100);
-        
+
         if (onProgress) {
             onProgress(progress);
         }

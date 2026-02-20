@@ -65,7 +65,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ## Technical Details
 
 - **Pure JavaScript**: No frameworks, vanilla JS with ES6 modules
-- **WebRTC (ntfy)**: Real-time WebRTC peer-to-peer connections for spouse syncing
+- **Real-time sync (ntfy)**: Uses ntfy topics as a lightweight message relay for room-based syncing between spouses
 - **LocalStorage**: Persistent storage for likes and settings
 - **Responsive Design**: Works on desktop and mobile devices
 - **Vitest**: Unit testing framework with jsdom for DOM testing
@@ -84,7 +84,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ├── nameData.js         # Name data loading and management
 ├── swipeCard.js        # Swipe gesture handling
 ├── likesManager.js     # Likes list management
-├── peerSession.js      # Spouse connection via WebRTC
+├── ntfySession.js      # ntfy-based room sync (pub/sub)
 ├── matchAnimation.js   # Match celebration animations
 ├── storage.js          # LocalStorage utilities
 ├── styles.css          # Application styles
@@ -121,7 +121,7 @@ npm run test:watch
 Tests cover:
 - LocalStorage operations (`test/storage.test.js`)
 - Name queue management (`test/nameData.test.js`)
-- Peer connection pure functions (`test/peerSession.test.js`)
+- ntfy session pure functions (`test/ntfySession.test.js`)
 - Utility functions (`test/utils.test.js`)
 
 ## Credits

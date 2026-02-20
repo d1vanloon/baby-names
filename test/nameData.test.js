@@ -10,7 +10,7 @@ vi.mock('../storage.js', () => ({
     getLikes: vi.fn(() => mockLikes)
 }));
 
-vi.mock('../peerSession.js', () => ({
+vi.mock('../ntfySession.js', () => ({
     isConnected: vi.fn(() => false),
     getSpouseLikes: vi.fn(() => new Set())
 }));
@@ -32,7 +32,7 @@ import {
 } from '../nameData.js';
 
 import { getViewed, markViewed, clearViewed, getLikes } from '../storage.js';
-import { isConnected, getSpouseLikes } from '../peerSession.js';
+import { isConnected, getSpouseLikes } from '../ntfySession.js';
 
 describe('nameData.js', () => {
     beforeEach(() => {
@@ -82,7 +82,7 @@ describe('nameData.js', () => {
         it('should consume and mark as viewed', () => {
             const beforeCount = getRemainingCount();
             const name = consumeCurrentName();
-            
+
             expect(name).toBeTruthy();
             expect(getRemainingCount()).toBe(beforeCount - 1);
             expect(markViewed).toHaveBeenCalledWith(name);
@@ -94,7 +94,7 @@ describe('nameData.js', () => {
             mockViewed.add('Ava');
             mockViewed.add('Sophia');
             mockViewed.add('Isabella');
-            
+
             resetQueue();
 
             const result = consumeCurrentName();
@@ -129,7 +129,7 @@ describe('nameData.js', () => {
     describe('spouse likes integration', () => {
         it('should not mix spouse likes when not connected', async () => {
             isConnected.mockReturnValue(false);
-            
+
             await loadNameData();
 
             const names = peekNextNames(3);

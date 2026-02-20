@@ -45,7 +45,7 @@ import {
     getStoredSessionTopic,
     ConnectionStatus,
     initializeAndReconnect
-} from './peerSession.js';
+} from './ntfySession.js';
 
 import {
     initMatchAnimation,
