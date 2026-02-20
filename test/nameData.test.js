@@ -1,18 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const mockViewed = new Set();
-const mockLikes = [];
 
 vi.mock('../storage.js', () => ({
     getViewed: vi.fn(() => new Set(mockViewed)),
     markViewed: vi.fn((name) => { mockViewed.add(name); }),
-    clearViewed: vi.fn(() => { mockViewed.clear(); }),
-    getLikes: vi.fn(() => mockLikes)
-}));
-
-vi.mock('../ntfySession.js', () => ({
-    isConnected: vi.fn(() => false),
-    getSpouseLikes: vi.fn(() => new Set())
+    clearViewed: vi.fn(() => { mockViewed.clear(); })
 }));
 
 vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
@@ -24,6 +17,7 @@ import {
     loadNameData,
     resetQueue,
     peekNextNames,
+    insertPriorityNames,
     consumeCurrentName,
     hasMoreNames,
     getRemainingCount,
@@ -31,14 +25,12 @@ import {
     getTotalNamesCount
 } from '../nameData.js';
 
-import { getViewed, markViewed, clearViewed, getLikes } from '../storage.js';
-import { isConnected, getSpouseLikes } from '../ntfySession.js';
+import { getViewed, markViewed, clearViewed } from '../storage.js';
 
 describe('nameData.js', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockViewed.clear();
-        mockLikes.length = 0;
         fetch.mockReset();
     });
 
@@ -126,24 +118,29 @@ describe('nameData.js', () => {
         });
     });
 
-    describe('spouse likes integration', () => {
-        it('should not mix spouse likes when not connected', async () => {
-            isConnected.mockReturnValue(false);
-
+    describe('insertPriorityNames', () => {
+        it('should move a priority name into the lookahead range', async () => {
             await loadNameData();
 
-            const names = peekNextNames(3);
-            expect(names.length).toBeGreaterThan(0);
+            const before = peekNextNames(5);
+            const target = before[4];
+
+            insertPriorityNames(new Set([target]), 3);
+
+            const after = peekNextNames(3);
+            expect(after).toContain(target);
         });
 
-        it('should mix spouse likes when connected', async () => {
-            isConnected.mockReturnValue(true);
-            getSpouseLikes.mockReturnValue(new Set(['Olivia']));
-
+        it('should not change queue when a priority name is already in lookahead', async () => {
             await loadNameData();
 
-            const names = peekNextNames(3);
-            expect(names).toContain('Olivia');
+            const before = peekNextNames(3);
+            const target = before[1];
+
+            insertPriorityNames(new Set([target]), 3);
+
+            const after = peekNextNames(3);
+            expect(after).toEqual(before);
         });
     });
 });

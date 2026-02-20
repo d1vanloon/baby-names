@@ -3,6 +3,7 @@
  */
 
 import { getLikes, removeLike as removeFromStorage, getLastName } from './storage.js';
+import { escapeHtml } from './utils.js';
 
 let likesListEl = null;
 let likesEmptyEl = null;
@@ -94,13 +95,3 @@ export function updateLikesCount() {
     }
 }
 
-/**
- * Escape HTML to prevent XSS
- * @param {string} str
- * @returns {string}
- */
-export function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}

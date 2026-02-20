@@ -1,7 +1,7 @@
 // Service Worker for Baby Names Picker
 // Provides offline functionality and caching for all assets
 
-const CACHE_NAME = 'baby-names-v2';
+const CACHE_NAME = 'baby-names-v3';
 
 // List of essential assets to cache
 const STATIC_ASSETS = [
@@ -14,101 +14,24 @@ const STATIC_ASSETS = [
   '/swipeCard.js',
   '/likesManager.js',
   '/ntfySession.js',
+  '/sessionSync.js',
+  '/matchesView.js',
+  '/sessionModal.js',
+  '/utils.js',
   '/matchAnimation.js',
   '/manifest.json',
   // External dependencies
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap'
 ];
 
+const DATA_START_YEAR = 1880;
+const DATA_END_YEAR = 2024;
+
 // Data files to cache for offline use
-const DATA_FILES = [
-  '/data/yob1880.txt',
-  '/data/yob1882.txt',
-  '/data/yob1883.txt',
-  '/data/yob1884.txt',
-  '/data/yob1885.txt',
-  '/data/yob1886.txt',
-  '/data/yob1887.txt',
-  '/data/yob1888.txt',
-  '/data/yob1889.txt',
-  '/data/yob1890.txt',
-  '/data/yob1891.txt',
-  '/data/yob1892.txt',
-  '/data/yob1893.txt',
-  '/data/yob1894.txt',
-  '/data/yob1895.txt',
-  '/data/yob1896.txt',
-  '/data/yob1897.txt',
-  '/data/yob1898.txt',
-  '/data/yob1899.txt',
-  '/data/yob1900.txt',
-  '/data/yob1901.txt',
-  '/data/yob1902.txt',
-  '/data/yob1903.txt',
-  '/data/yob1904.txt',
-  '/data/yob1905.txt',
-  '/data/yob1906.txt',
-  '/data/yob1907.txt',
-  '/data/yob1908.txt',
-  '/data/yob1909.txt',
-  '/data/yob1910.txt',
-  '/data/yob1911.txt',
-  '/data/yob1912.txt',
-  '/data/yob1913.txt',
-  '/data/yob1914.txt',
-  '/data/yob1915.txt',
-  '/data/yob1916.txt',
-  '/data/yob1917.txt',
-  '/data/yob1918.txt',
-  '/data/yob1919.txt',
-  '/data/yob1920.txt',
-  '/data/yob1921.txt',
-  '/data/yob1922.txt',
-  '/data/yob1923.txt',
-  '/data/yob1924.txt',
-  '/data/yob1925.txt',
-  '/data/yob1926.txt',
-  '/data/yob1927.txt',
-  '/data/yob1928.txt',
-  '/data/yob1929.txt',
-  '/data/yob1931.txt',
-  '/data/yob1932.txt',
-  '/data/yob1933.txt',
-  '/data/yob1934.txt',
-  '/data/yob1935.txt',
-  '/data/yob1936.txt',
-  '/data/yob1939.txt',
-  '/data/yob1944.txt',
-  '/data/yob1945.txt',
-  '/data/yob1946.txt',
-  '/data/yob1947.txt',
-  '/data/yob1948.txt',
-  '/data/yob1949.txt',
-  '/data/yob1950.txt',
-  '/data/yob1951.txt',
-  '/data/yob1952.txt',
-  '/data/yob1953.txt',
-  '/data/yob1954.txt',
-  '/data/yob1955.txt',
-  '/data/yob1956.txt',
-  '/data/yob1957.txt',
-  '/data/yob1958.txt',
-  '/data/yob1959.txt',
-  '/data/yob1960.txt',
-  '/data/yob1961.txt',
-  '/data/yob1962.txt',
-  '/data/yob1963.txt',
-  '/data/yob1964.txt',
-  '/data/yob1965.txt',
-  '/data/yob1966.txt',
-  '/data/yob1967.txt',
-  '/data/yob1968.txt',
-  '/data/yob1970.txt',
-  '/data/yob1971.txt',
-  '/data/yob1972.txt',
-  '/data/yob1973.txt',
-  '/data/yob1974.txt'
-];
+const DATA_FILES = Array.from(
+  { length: DATA_END_YEAR - DATA_START_YEAR + 1 },
+  (_, i) => `/data/yob${DATA_START_YEAR + i}.txt`
+);
 
 const ALL_ASSETS = [...STATIC_ASSETS, ...DATA_FILES];
 
