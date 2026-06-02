@@ -21,6 +21,6 @@
   "homepage": "https://github.com/d1vanloon/baby-names#readme",
   "devDependencies": {
     "jsdom": "^29.1.1",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   }
 }
