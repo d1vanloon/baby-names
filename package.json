@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/d1vanloon/baby-names#readme",
   "devDependencies": {
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.0",
     "vitest": "^4.1.10"
   }
 }
