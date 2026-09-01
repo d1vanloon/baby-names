@@ -1,7 +1,7 @@
 // Service Worker for Baby Names Picker
 // Provides offline functionality and caching for app assets
 
-const CACHE_NAME = 'baby-names-v8';
+const CACHE_NAME = 'baby-names-v9';
 
 const STATIC_ASSETS = [
     '/',
@@ -37,6 +37,20 @@ async function cacheAssets(cache, urls) {
             console.error('[Service Worker] Failed to cache', url, error);
         }
     }
+}
+
+/**
+ * Same-origin assets are cached by pathname so cache-busting query params
+ * and pairing links do not create duplicate entries.
+ * @param {Request} request
+ * @returns {Request}
+ */
+function cacheKeyRequest(request) {
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) {
+        return request;
+    }
+    return new Request(url.pathname, request);
 }
 
 self.addEventListener('install', (event) => {
@@ -93,19 +107,20 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.origin === self.location.origin) {
+        const cacheRequest = cacheKeyRequest(request);
         event.respondWith(
             fetch(request)
                 .then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         const responseToCache = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(request, responseToCache);
+                            cache.put(cacheRequest, responseToCache);
                         });
                     }
                     return networkResponse;
                 })
                 .catch(() => {
-                    return caches.match(request, { ignoreSearch: true });
+                    return caches.match(cacheRequest);
                 })
         );
         return;
@@ -114,10 +129,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(request)
             .then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(request)
+                const fetchPromise = fetch(request)
                     .then((networkResponse) => {
                         if (networkResponse && networkResponse.status === 200) {
                             const responseToCache = networkResponse.clone();
@@ -132,6 +144,12 @@ self.addEventListener('fetch', (event) => {
                         console.log('[Service Worker] External fetch failed');
                         return Response.error();
                     });
+
+                if (cachedResponse) {
+                    event.waitUntil(fetchPromise);
+                    return cachedResponse;
+                }
+                return fetchPromise;
             })
     );
 });
