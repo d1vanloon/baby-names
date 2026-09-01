@@ -60,6 +60,17 @@ export function encodePairingToken(publicKey, host) {
 }
 
 /**
+ * @param {string} host
+ * @returns {boolean}
+ */
+function isValidDerpHost(host) {
+    if (!host || /[\s/?#]/.test(host)) {
+        return false;
+    }
+    return /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(host);
+}
+
+/**
  * @param {string} token
  * @returns {{ publicKey: Uint8Array, host: string } | null}
  */
@@ -75,7 +86,7 @@ export function decodePairingToken(token) {
     try {
         const publicKey = b64UrlToBytes(rest.slice(0, dot));
         const host = new TextDecoder().decode(b64UrlToBytes(rest.slice(dot + 1)));
-        if (publicKey.length !== 32 || !host) {
+        if (publicKey.length !== 32 || !isValidDerpHost(host)) {
             return null;
         }
         return { publicKey, host };

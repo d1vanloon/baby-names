@@ -1,7 +1,7 @@
 // Service Worker for Baby Names Picker
 // Provides offline functionality and caching for app assets
 
-const CACHE_NAME = 'baby-names-v7';
+const CACHE_NAME = 'baby-names-v8';
 
 const STATIC_ASSETS = [
     '/',
@@ -105,7 +105,7 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    return caches.match(request);
+                    return caches.match(request, { ignoreSearch: true });
                 })
         );
         return;
@@ -114,7 +114,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(request)
             .then((cachedResponse) => {
-                const fetchPromise = fetch(request)
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                return fetch(request)
                     .then((networkResponse) => {
                         if (networkResponse && networkResponse.status === 200) {
                             const responseToCache = networkResponse.clone();
@@ -127,9 +130,8 @@ self.addEventListener('fetch', (event) => {
                     })
                     .catch(() => {
                         console.log('[Service Worker] External fetch failed');
+                        return Response.error();
                     });
-
-                return cachedResponse || fetchPromise;
             })
     );
 });

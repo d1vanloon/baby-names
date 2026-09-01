@@ -62,6 +62,13 @@ describe('pairing token', () => {
         expect(decodePairingToken('room1234')).toBeNull();
         expect(decodePairingToken('bn1.not-valid')).toBeNull();
     });
+
+    it('rejects hosts with path, query, or fragment characters', () => {
+        const { publicKey } = nacl.box.keyPair();
+        for (const host of ['evil.com/foo', 'host?x=1', 'host#frag', 'host name']) {
+            expect(decodePairingToken(encodePairingToken(publicKey, host))).toBeNull();
+        }
+    });
 });
 
 describe('acceptPeer', () => {
