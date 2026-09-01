@@ -6,7 +6,7 @@ const STORAGE_KEYS = {
     LAST_NAME: 'babyNames_lastName',
     LIKES: 'babyNames_likes',
     VIEWED: 'babyNames_viewed',
-    SESSION_TOPIC: 'babyNames_sessionTopic',
+    PAIRING_TOKEN: 'babyNames_pairingToken',
     SESSION_INSTANCE_ID: 'babyNames_instanceId',
     PARTNER_LIKES: 'babyNames_partnerLikes'
 };
@@ -102,26 +102,25 @@ export function clearViewed() {
 }
 
 /**
- * Get stored session topic
+ * Opaque pairing resume blob (host key, region, occupancy).
  * @returns {string|null}
  */
-export function getSessionTopic() {
-    return localStorage.getItem(STORAGE_KEYS.SESSION_TOPIC);
+export function getPairingToken() {
+    return localStorage.getItem(STORAGE_KEYS.PAIRING_TOKEN);
 }
 
 /**
- * Save session topic
- * @param {string} topic
+ * @param {string} value
  */
-export function setSessionTopic(topic) {
-    localStorage.setItem(STORAGE_KEYS.SESSION_TOPIC, topic);
+export function setPairingToken(value) {
+    localStorage.setItem(STORAGE_KEYS.PAIRING_TOKEN, value);
 }
 
 /**
- * Clear session topic (on disconnect)
+ * Forget the stored pairing resume record.
  */
-export function clearSessionTopic() {
-    localStorage.removeItem(STORAGE_KEYS.SESSION_TOPIC);
+export function clearPairingToken() {
+    localStorage.removeItem(STORAGE_KEYS.PAIRING_TOKEN);
 }
 
 /**

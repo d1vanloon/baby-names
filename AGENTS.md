@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-A vanilla JavaScript PWA for couples to discover baby names together. Uses ES6 modules, ntfy-based room sync for real-time connections, and LocalStorage for persistence.
+A vanilla JavaScript PWA for couples to discover baby names together. Uses ES6 modules, Tailscale DERP WebSocket pairing for real-time connections, and LocalStorage for persistence.
 
 ## Build/Run Commands
 
-No build system required - this is a client-side only application.
+No build system required for the app itself - this is a client-side only application. Regenerating the swipe catalog from SSA yearly files is optional.
 
 ### Development
 ```bash
@@ -17,6 +17,13 @@ npx http-server -p 8000
 ```
 
 Then open `http://localhost:8000` in browser.
+
+### Catalog
+```bash
+npm run build:catalog
+```
+
+Aggregates `data/yobYYYY.txt` into `data/names.json` (names with 5000+ occurrences).
 
 ### Testing
 
@@ -33,9 +40,9 @@ npm run test:watch
 Tests are located in the `test/` directory:
 - `test/storage.test.js` - LocalStorage operations
 - `test/nameData.test.js` - Name queue management
-- `test/ntfySession.test.js` - ntfy session behaviors
-- `test/sessionSync.test.js` - Sync batching and match logic
-- `test/sessionModal.test.js` - Session/connection UI state handling
+- `test/derpTransport.test.js` - DERP handshake and packet relay
+- `test/partnerSession.test.js` - Pairing, occupancy, matches
+- `test/pairingView.test.js` - Pairing sheet exclusive states
 - `test/matchesView.test.js` - Matches list rendering
 - `test/utils.test.js` - Utility functions (escapeHtml)
 
@@ -70,7 +77,7 @@ npm install --save-dev eslint prettier
 ```javascript
 // Group imports: built-ins, then external, then internal
 import { something } from './storage.js';  // Always include .js extension
-import { ntfySession } from './ntfySession.js';
+import { createPartnerSession } from './partnerSession.js';
 ```
 
 ### Documentation
@@ -127,34 +134,37 @@ function escapeHtml(str) {
 ## Project Structure
 
 ```
-├── index.html          # Main HTML entry point
-├── app.js              # Main application module
-├── nameData.js         # Data loading and name management
-├── swipeCard.js        # Touch/mouse swipe gestures
-├── likesManager.js     # Likes list UI management
-├── ntfySession.js      # ntfy-based room sync (pub/sub)
-├── sessionSync.js      # Match/sync state and batching logic
-├── sessionModal.js     # Session modal and connection bar UI management
-├── matchesView.js      # Matches screen UI management
-├── matchAnimation.js   # Match celebration UI
-├── storage.js          # LocalStorage utilities
-├── utils.js            # Shared utility functions
-├── service-worker.js   # PWA service worker
-├── styles.css          # Application styles
-├── manifest.json       # PWA manifest
-├── data/               # Baby name data files (yobYYYY.txt)
-└── icons/              # PWA icons
+├── index.html              # Main HTML entry point
+├── app.js                  # Main application module
+├── nameData.js             # Data loading and name management
+├── swipeCard.js            # Touch/mouse swipe gestures
+├── likesManager.js         # Likes list UI management
+├── partnerSession.js       # DERP pairing and like sync
+├── derpTransport.js        # DERP-over-WebSocket client
+├── pairingView.js          # Pairing sheet and connection bar
+├── matchesView.js          # Matches screen UI management
+├── matchAnimation.js       # Match celebration UI
+├── storage.js              # LocalStorage utilities
+├── utils.js                # Shared utility functions
+├── service-worker.js       # PWA service worker
+├── styles.css              # Application styles
+├── manifest.json           # PWA manifest
+├── vendor/                 # tweetnacl for the browser
+├── scripts/build-catalog.js
+├── data/                   # names.json catalog plus yobYYYY.txt sources
+└── icons/                  # PWA icons
 ```
 
 ## Dependencies
 
-- **ntfy**: Uses `ntfy.sh` (configurable via `ntfySession.js`) as the message relay for room topics
+- **DERP**: Public Tailscale DERP (`derp12d.tailscale.com` by default) as the encrypted packet relay
+- **tweetnacl**: NaCl boxing for DERP frames and peer packets
 - **Fonts**: Google Fonts (Outfit)
 
 ## Browser Support
 
 - Modern browsers with ES6 module support
-- WebRTC required for spouse connections
+- WebSocket required for spouse connections
 - LocalStorage required for persistence
 - Service Worker for offline functionality
 

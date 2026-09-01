@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:catalog": "node scripts/build-catalog.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,8 @@
   "devDependencies": {
     "jsdom": "^29.1.1",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "tweetnacl": "^1.0.3"
   }
 }

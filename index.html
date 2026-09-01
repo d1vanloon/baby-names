@@ -33,7 +33,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
           rel="stylesheet">
     <link rel="stylesheet"
-          href="styles.css">
+          href="styles.css?v=6">
 </head>
 
 <body>
@@ -82,6 +82,13 @@
                         <span id="likes-count"
                               class="badge">0</span>
                     </button>
+                    <button id="matches-btn"
+                            class="btn btn-icon hidden"
+                            title="Matches">
+                        <span class="icon">💕</span>
+                        <span id="matches-count"
+                              class="badge">0</span>
+                    </button>
                     <button id="session-btn"
                             class="btn btn-icon"
                             title="Connect with Spouse">
@@ -116,14 +123,9 @@
                 </button>
             </div>
 
-            <!-- Connection status bar -->
             <div id="connection-bar"
                  class="connection-bar hidden">
-                <span id="connection-status">🔗 Connected with spouse</span>
-                <button id="matches-btn"
-                        class="btn btn-small">Matches <span id="matches-count">0</span></button>
-                <button id="disconnect-btn"
-                        class="btn btn-small btn-danger">Disconnect</button>
+                <span id="connection-status">Connected</span>
             </div>
         </div>
 
@@ -135,7 +137,7 @@
                         class="btn btn-icon">
                     <span class="icon">←</span>
                 </button>
-                <h2>Your Liked Names</h2>
+                <h2>Liked names</h2>
                 <div class="header-spacer"></div>
             </header>
             <div id="likes-list"
@@ -144,7 +146,7 @@
             </div>
             <div id="likes-empty"
                  class="empty-list hidden">
-                <p>No liked names yet!</p>
+                <p>No liked names yet</p>
                 <p class="muted">Swipe right on names you love</p>
             </div>
         </div>
@@ -157,7 +159,7 @@
                         class="btn btn-icon">
                     <span class="icon">←</span>
                 </button>
-                <h2>Your Matches 💕</h2>
+                <h2>Matches</h2>
                 <div class="header-spacer"></div>
             </header>
             <div id="matches-list"
@@ -166,68 +168,60 @@
             </div>
             <div id="matches-empty"
                  class="empty-list hidden">
-                <p>No matches yet!</p>
+                <p>No matches yet</p>
                 <p class="muted">Keep swiping to find names you both love</p>
             </div>
         </div>
 
-        <!-- Session Modal -->
-        <div id="session-modal"
-             class="modal hidden">
-            <div class="modal-overlay"></div>
-            <div class="modal-content glass-card">
-                <button id="close-modal-btn"
-                        class="btn btn-icon modal-close">✕</button>
-                <h2>Spouse Connection</h2>
+        <div id="pairing-sheet"
+             class="pairing-sheet hidden">
+            <div class="pairing-overlay"></div>
+            <div class="pairing-card glass-card">
+                <button id="pairing-close"
+                        class="btn btn-icon pairing-close"
+                        title="Close">✕</button>
+                <h2>Find names together</h2>
+                <p class="pairing-lead">One of you sends a link. The other opens it. That is the whole pairing.</p>
 
-                <!-- Status indicator -->
-                <div id="session-status"
-                     class="session-status">
-                    <span id="session-status-icon"
-                          class="status-icon">⏳</span>
-                    <span id="session-status-text">Initializing...</span>
-                </div>
-
-                <!-- Connected state -->
-                <div id="session-connected"
-                     class="session-section hidden">
-                    <p class="success-text">✅ Connected to spouse!</p>
-                    <p class="muted">Your likes are being synced in real-time.</p>
-                    <button id="modal-disconnect-btn"
-                            class="btn btn-danger">Disconnect</button>
-                </div>
-
-                <!-- Connection code section - always visible -->
-                <div id="session-room-section"
-                     class="session-section">
-                    <p>Share this connection code with your spouse:</p>
-                    <div class="link-box">
+                <div id="pairing-idle"
+                     class="pairing-panel">
+                    <p class="pairing-status">Not connected yet</p>
+                    <button id="pairing-copy-link"
+                            class="btn btn-primary">Copy invite link</button>
+                    <p class="note">Send it in a text. They open it and you are paired.</p>
+                    <div class="pairing-join">
                         <input type="text"
-                               id="session-code"
-                               readonly>
-                        <button id="copy-code-btn"
-                                class="btn btn-small">Copy Code</button>
-                        <button id="copy-link-btn"
-                                class="btn btn-small">Copy Link</button>
+                               id="pairing-join-input"
+                               placeholder="Paste their link"
+                               autocomplete="off">
+                        <button id="pairing-join-btn"
+                                class="btn btn-secondary">Join</button>
                     </div>
-                        <button id="session-reset-btn"
-                            class="btn btn-danger">Reset code (disconnect)</button>
                 </div>
 
-                <!-- Join section - always visible -->
-                <div id="session-join-section"
-                     class="session-section">
-                    <div class="divider">
-                        <span>or</span>
-                    </div>
-                    <p>Enter your spouse's code:</p>
-                    <div class="link-box">
-                        <input type="text"
-                               id="room-code-input"
-                               placeholder="e.g. a7x2k9m1">
-                        <button id="join-room-btn"
-                                class="btn btn-small">Connect</button>
-                    </div>
+                <div id="pairing-connecting"
+                     class="pairing-panel hidden">
+                    <p id="pairing-connecting-text"
+                       class="pairing-status pairing-status-wait">Waiting for your spouse to open the link</p>
+                    <button id="pairing-copy-again"
+                            class="btn btn-secondary hidden">Copy invite link again</button>
+                    <button id="pairing-cancel"
+                            class="btn btn-quiet">Cancel</button>
+                </div>
+
+                <div id="pairing-paired"
+                     class="pairing-panel hidden">
+                    <p class="pairing-status pairing-status-ok">Connected. Likes will match in real time.</p>
+                    <button id="pairing-disconnect"
+                            class="btn btn-quiet">Disconnect</button>
+                </div>
+
+                <div id="pairing-error"
+                     class="pairing-panel hidden">
+                    <p id="pairing-error-text"
+                       class="pairing-status pairing-status-bad">Could not connect. Check the link and try again.</p>
+                    <button id="pairing-retry"
+                            class="btn btn-primary">Try again</button>
                 </div>
             </div>
         </div>
@@ -247,8 +241,16 @@
         </div>
     </div>
 
+    <script src="vendor/nacl-fast.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "tweetnacl": "./vendor/tweetnacl.js"
+            }
+        }
+    </script>
     <script type="module"
-            src="app.js"></script>
+            src="app.js?v=6"></script>
 
     <!-- Service Worker Registration -->
     <script>

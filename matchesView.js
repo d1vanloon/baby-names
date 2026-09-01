@@ -39,6 +39,7 @@ export function updateMatchesCount(count) {
 
     lastMatchesCount = nextCount;
     matchesCountEl.textContent = String(nextCount);
+    matchesCountEl.style.display = nextCount > 0 ? '' : 'none';
 
     if (isIncrement) {
         matchesCountEl.classList.add('matches-count-pop');
@@ -71,7 +72,7 @@ export function renderMatchesList(matches, lastName) {
         const item = document.createElement('div');
         item.className = 'name-item';
         item.innerHTML = `
-            <span class="name-item-text">💕 ${escapeHtml(name)} ${escapeHtml(lastName || '')}</span>
+            <span class="name-item-text">${escapeHtml(name)} ${escapeHtml(lastName || '')}</span>
         `;
         matchesListEl.appendChild(item);
     }

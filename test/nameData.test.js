@@ -10,7 +10,7 @@ vi.mock('../storage.js', () => ({
 
 vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
     ok: true,
-    text: async () => 'Emma,F,10000\nOlivia,F,9000\nAva,F,8000\nSophia,F,7000\nIsabella,F,6000'
+    json: async () => ['Emma', 'Olivia', 'Ava', 'Sophia', 'Isabella']
 })));
 
 import {
@@ -32,19 +32,25 @@ describe('nameData.js', () => {
         vi.clearAllMocks();
         mockViewed.clear();
         fetch.mockReset();
+        fetch.mockResolvedValue({
+            ok: true,
+            json: async () => ['Emma', 'Olivia', 'Ava', 'Sophia', 'Isabella']
+        });
     });
 
     describe('loadNameData', () => {
-        it('should load names from data files', async () => {
+        it('should load names from the catalog', async () => {
             await loadNameData();
 
-            expect(getTotalNamesCount()).toBeGreaterThan(0);
+            expect(fetch).toHaveBeenCalledWith('data/names.json');
+            expect(getTotalNamesCount()).toBe(5);
             expect(hasMoreNames()).toBe(true);
         });
 
-        it('should filter names below minimum occurrences', async () => {
+        it('should keep catalog names in the queue', async () => {
             await loadNameData();
 
+            expect(getTotalNamesCount()).toBe(5);
             expect(hasMoreNames()).toBe(true);
         });
 
