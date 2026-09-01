@@ -9,15 +9,15 @@ Baby Names Picker is an interactive web app that helps expecting parents find th
 ### Key Features
 
 - **Tinder-Style Swiping**: Swipe right to like names, left to skip
-- **Real-Time Spouse Connection**: Connect with your spouse to sync likes and discover matches instantly
+- **Real-Time Spouse Connection**: Share a pairing link so likes sync over a Tailscale DERP relay
 - **Thousands of Names**: Database of popular baby names from 1880-2024 (filtered to names with 5,000+ occurrences)
 - **Personalized Display**: Enter your last name to see how full names look
 - **Match Celebrations**: Beautiful animations when you and your spouse both like the same name
-- **Session Persistence**: Your likes and spouse connections are saved locally
+- **Session Persistence**: Your likes and pairing resume data are saved locally
 
 ## How to Run
 
-This is a client-side web application that runs in any modern browser. No server or build step is required.
+This is a client-side web application that runs in any modern browser. No server or build step is required to use the app. Regenerating the name catalog from SSA yearly files is optional.
 
 ### Option 1: Open Directly
 1. Clone or download this repository
@@ -51,59 +51,60 @@ Then open `http://localhost:8000` in your browser.
 
 ### Spouse Mode
 1. Click the link icon (🔗) in the header
-2. Copy the generated session link
+2. Copy the generated share link
 3. Share the link with your spouse
-4. When your spouse opens the link, you'll be connected
+4. When your spouse opens the link, you'll be connected over a DERP relay
 5. Both of you can swipe independently
 6. When you both like the same name, you'll see a match celebration!
 7. View your mutual matches by clicking the "Matches" button
 
 ### Data
 
-The application uses historical baby name data from the U.S. Social Security Administration, covering years 1880-2024. Only names with 5,000 or more recorded occurrences are included in the swipe deck.
+The application uses historical baby name data from the U.S. Social Security Administration, covering years 1880-2024. Only names with 5,000 or more recorded occurrences are included in the swipe deck. Runtime loads a single `data/names.json` catalog; rebuild it with `npm run build:catalog` after updating the yearly SSA files.
 
 ## Technical Details
 
 - **Pure JavaScript**: No frameworks, vanilla JS with ES6 modules
-- **Real-time sync (ntfy)**: Uses ntfy topics as a lightweight message relay for room-based syncing between spouses
-- **LocalStorage**: Persistent storage for likes and settings
+- **DERP pairing**: Encrypted packets over public Tailscale DERP WebSockets (`wss://…/derp`)
+- **LocalStorage**: Persistent storage for likes, viewed names, and pairing resume
 - **Responsive Design**: Works on desktop and mobile devices
 - **Vitest**: Unit testing framework with jsdom for DOM testing
 
 ## Browser Requirements
 
 - Modern browser with ES6 module support (Chrome, Firefox, Safari, Edge)
-- WebRTC support required for spouse connection feature
+- WebSocket support for spouse pairing
 - LocalStorage support for saving likes
 
 ## Project Structure
 
 ```
-├── index.html          # Main HTML file
-├── app.js              # Main application logic
-├── nameData.js         # Name data loading and management
-├── swipeCard.js        # Swipe gesture handling
-├── likesManager.js     # Likes list management
-├── ntfySession.js      # ntfy-based room sync (pub/sub)
-├── sessionSync.js      # Sync batching and match state management
-├── sessionModal.js     # Session modal and connection bar UI
-├── matchesView.js      # Matches screen UI rendering
-├── matchAnimation.js   # Match celebration animations
-├── storage.js          # LocalStorage utilities
-├── utils.js            # Shared utility functions
-├── styles.css          # Application styles
-├── test/               # Unit tests
+├── index.html              # Main HTML file
+├── app.js                  # Main application logic
+├── nameData.js             # Name catalog loading and queue
+├── swipeCard.js            # Swipe gesture handling
+├── likesManager.js         # Likes list management
+├── partnerSession.js       # DERP pairing, likes sync, derived matches
+├── derpTransport.js        # DERP-over-WebSocket client
+├── sessionModal.js         # Session modal and connection bar UI
+├── matchesView.js          # Matches screen UI rendering
+├── matchAnimation.js       # Match celebration animations
+├── storage.js              # LocalStorage utilities
+├── utils.js                # Shared utility functions
+├── styles.css              # Application styles
+├── vendor/                 # tweetnacl for the browser
+├── scripts/build-catalog.js
+├── test/
 │   ├── storage.test.js
 │   ├── nameData.test.js
-│   ├── ntfySession.test.js
-│   ├── sessionSync.test.js
+│   ├── derpTransport.test.js
+│   ├── partnerSession.test.js
 │   ├── sessionModal.test.js
 │   ├── matchesView.test.js
 │   └── utils.test.js
-└── data/               # Baby name data files (yobYYYY.txt)
-    ├── yob1880.txt
-    ├── yob1881.txt
-    └── ...
+└── data/
+    ├── names.json          # Filtered swipe catalog
+    └── yobYYYY.txt         # SSA source files
 ```
 
 ## License
@@ -128,10 +129,10 @@ npm run test:watch
 Tests cover:
 - LocalStorage operations (`test/storage.test.js`)
 - Name queue management (`test/nameData.test.js`)
-- ntfy session behaviors (`test/ntfySession.test.js`)
-- sync batching and match logic (`test/sessionSync.test.js`)
-- session UI state handling (`test/sessionModal.test.js`)
-- matches UI rendering (`test/matchesView.test.js`)
+- DERP transport (`test/derpTransport.test.js`)
+- Partner session pairing and matches (`test/partnerSession.test.js`)
+- Session UI state handling (`test/sessionModal.test.js`)
+- Matches UI rendering (`test/matchesView.test.js`)
 - Utility functions (`test/utils.test.js`)
 
 ## Credits

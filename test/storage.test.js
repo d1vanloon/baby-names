@@ -22,9 +22,9 @@ import {
     getViewed,
     markViewed,
     clearViewed,
-    getSessionTopic,
-    setSessionTopic,
-    clearSessionTopic,
+    getPairingToken,
+    setPairingToken,
+    clearPairingToken,
     getPartnerLikes,
     setPartnerLikes,
     clearPartnerLikes,
@@ -124,20 +124,20 @@ describe('storage.js', () => {
         });
     });
 
-    describe('sessionTopic', () => {
-        it('should return null when no session topic stored', () => {
-            expect(getSessionTopic()).toBeNull();
+    describe('pairingToken', () => {
+        it('should return null when no pairing token stored', () => {
+            expect(getPairingToken()).toBeNull();
         });
 
-        it('should save and retrieve session topic', () => {
-            setSessionTopic('a7x2k9m1');
-            expect(getSessionTopic()).toBe('a7x2k9m1');
+        it('should save and retrieve pairing token', () => {
+            setPairingToken('{"role":"host","token":"bn1.abc"}');
+            expect(getPairingToken()).toBe('{"role":"host","token":"bn1.abc"}');
         });
 
-        it('should clear session topic', () => {
-            setSessionTopic('a7x2k9m1');
-            clearSessionTopic();
-            expect(getSessionTopic()).toBeNull();
+        it('should clear pairing token', () => {
+            setPairingToken('{"role":"host"}');
+            clearPairingToken();
+            expect(getPairingToken()).toBeNull();
         });
     });
 

@@ -5,6 +5,7 @@ import {
     showSessionModal,
     hideSessionModal,
     updateSessionModalState,
+    setShareToken,
     handleConnectionChange,
     handleStatusChange
 } from '../sessionModal.js';
@@ -40,11 +41,10 @@ describe('sessionModal.js', () => {
         deps = {
             onJoinSession: vi.fn(() => Promise.resolve()),
             onDisconnect: vi.fn(() => Promise.resolve()),
-            onGenerateShareLink: vi.fn(() => Promise.resolve('https://example.com/?room=abc12345')),
-            getCurrentTopic: vi.fn(() => 'abc12345'),
-            getStoredSessionTopic: vi.fn(() => 'abc12345'),
-            isInRoom: vi.fn(() => true),
-            isConnected: vi.fn(() => true)
+            onGenerateShareLink: vi.fn(async () => {
+                setShareToken('bn1.testtoken.host');
+                return 'https://example.com/?pair=bn1.testtoken.host';
+            })
         };
 
         Object.assign(navigator, {
@@ -65,8 +65,10 @@ describe('sessionModal.js', () => {
     });
 
     it('updates code and connected state', () => {
+        setShareToken('bn1.testtoken.host');
+        handleConnectionChange(true);
         updateSessionModalState();
-        expect(document.getElementById('session-code').value).toBe('abc12345');
+        expect(document.getElementById('session-code').value).toBe('bn1.testtoken.host');
         expect(document.getElementById('session-connected').classList.contains('hidden')).toBe(false);
     });
 

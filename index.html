@@ -184,8 +184,8 @@
                 <div id="session-status"
                      class="session-status">
                     <span id="session-status-icon"
-                          class="status-icon">⏳</span>
-                    <span id="session-status-text">Initializing...</span>
+                          class="status-icon">📴</span>
+                    <span id="session-status-text">Share a link to connect, or paste your spouse's link.</span>
                 </div>
 
                 <!-- Connected state -->
@@ -224,7 +224,7 @@
                     <div class="link-box">
                         <input type="text"
                                id="room-code-input"
-                               placeholder="e.g. a7x2k9m1">
+                               placeholder="Paste pair token or link">
                         <button id="join-room-btn"
                                 class="btn btn-small">Connect</button>
                     </div>
@@ -247,6 +247,14 @@
         </div>
     </div>
 
+    <script src="vendor/nacl-fast.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "tweetnacl": "./vendor/tweetnacl.js"
+            }
+        }
+    </script>
     <script type="module"
             src="app.js"></script>
 

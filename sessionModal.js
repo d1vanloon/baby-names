@@ -1,23 +1,20 @@
 /**
- * Session modal and connection bar UI management
+ * Session modal and connection bar.
  */
 
 let elements = null;
 let deps = null;
+let currentToken = '';
+let paired = false;
 
 /**
- * Initialize session UI module
  * @param {Object} options
  */
 export function initSessionModal(options) {
     deps = {
         onJoinSession: options.onJoinSession,
         onDisconnect: options.onDisconnect,
-        onGenerateShareLink: options.onGenerateShareLink,
-        getCurrentTopic: options.getCurrentTopic,
-        getStoredSessionTopic: options.getStoredSessionTopic,
-        isInRoom: options.isInRoom,
-        isConnected: options.isConnected
+        onGenerateShareLink: options.onGenerateShareLink
     };
 
     elements = {
@@ -44,7 +41,9 @@ export function initSessionModal(options) {
 }
 
 function setupEventHandlers() {
-    if (!elements) return;
+    if (!elements) {
+        return;
+    }
 
     elements.sessionBtn.addEventListener('click', showSessionModal);
     elements.closeModalBtn.addEventListener('click', hideSessionModal);
@@ -52,12 +51,16 @@ function setupEventHandlers() {
 
     elements.copyCodeBtn.addEventListener('click', async () => {
         try {
+            if (!currentToken) {
+                await deps.onGenerateShareLink();
+            }
             await navigator.clipboard.writeText(elements.sessionCode.value);
             elements.copyCodeBtn.textContent = 'Copied!';
             setTimeout(() => {
                 elements.copyCodeBtn.textContent = 'Copy Code';
             }, 2000);
         } catch (err) {
+            console.error('Failed to copy code:', err);
             elements.sessionCode.select();
             document.execCommand('copy');
         }
@@ -77,16 +80,18 @@ function setupEventHandlers() {
     });
 
     elements.joinRoomBtn.addEventListener('click', async () => {
-        const roomCode = elements.roomCodeInput.value.trim();
-        if (!roomCode) return;
+        const token = elements.roomCodeInput.value.trim();
+        if (!token) {
+            return;
+        }
 
         try {
-            await deps.onJoinSession(roomCode);
+            await deps.onJoinSession(token);
             elements.roomCodeInput.value = '';
             updateSessionModalState();
         } catch (err) {
-            console.error('Failed to join room:', err);
-            alert('Failed to join room. Please check the code and try again.');
+            console.error('Failed to join:', err);
+            alert('Failed to join. Please check the link and try again.');
         }
     });
 
@@ -111,75 +116,87 @@ function setupEventHandlers() {
 }
 
 export function showSessionModal() {
-    if (!elements) return;
+    if (!elements) {
+        return;
+    }
     elements.sessionModal.classList.remove('hidden');
     updateSessionModalState();
 }
 
 export function hideSessionModal() {
-    if (!elements) return;
+    if (!elements) {
+        return;
+    }
     elements.sessionModal.classList.add('hidden');
 }
 
+/**
+ * @param {string} token
+ */
+export function setShareToken(token) {
+    currentToken = token || '';
+    updateSessionModalState();
+}
+
 export function updateSessionModalState() {
-    if (!elements || !deps) return;
-
-    const topic = deps.getCurrentTopic() || deps.getStoredSessionTopic();
-    elements.sessionCode.value = topic || '';
-
-    const connected = deps.isConnected();
-    elements.sessionConnected.classList.toggle('hidden', !connected);
+    if (!elements) {
+        return;
+    }
+    elements.sessionCode.value = currentToken;
+    elements.sessionConnected.classList.toggle('hidden', !paired);
 }
 
 export function handleConnectionChange(connected) {
-    if (!elements) return;
-
-    elements.connectionBar.classList.toggle('hidden', !connected);
-
-    if (connected) {
+    paired = Boolean(connected);
+    if (!elements) {
+        return;
+    }
+    elements.connectionBar.classList.toggle('hidden', !paired);
+    if (paired) {
         elements.connectionStatus.textContent = '🔗 Connected with spouse';
     }
-
     if (!elements.sessionModal.classList.contains('hidden')) {
         updateSessionModalState();
     }
 }
 
+/**
+ * @param {'idle'|'connecting'|'paired'|'error'|string} status
+ * @param {string} [message]
+ */
 export function handleStatusChange(status, message) {
-    if (!elements) return;
+    if (!elements) {
+        return;
+    }
 
     const statusEl = elements.sessionStatus;
     const iconEl = elements.sessionStatusIcon;
     const textEl = elements.sessionStatusText;
-
     statusEl.classList.remove('status-loading', 'status-connected', 'status-error');
 
-    switch (status) {
-        case 'CONNECTING':
-            statusEl.classList.add('status-loading');
-            iconEl.textContent = '⏳';
-            textEl.textContent = message || 'Connecting...';
-            break;
-        case 'IN_ROOM':
-            iconEl.textContent = '📡';
-            textEl.textContent = message || 'Ready to connect, waiting for spouse...';
-            break;
-        case 'CONNECTED':
-            statusEl.classList.add('status-connected');
-            iconEl.textContent = '✅';
-            textEl.textContent = message || 'Connected to spouse!';
-            updateSessionModalState();
-            break;
-        case 'ERROR':
-            statusEl.classList.add('status-error');
-            iconEl.textContent = '❌';
-            textEl.textContent = message || 'Connection error';
-            break;
-        case 'DISCONNECTED':
-        default:
-            iconEl.textContent = '📴';
-            textEl.textContent = message || 'Enter a code to connect or start a new connection';
-            updateSessionModalState();
-            break;
+    if (status === 'connecting' || status === 'CONNECTING' || status === 'IN_ROOM') {
+        statusEl.classList.add('status-loading');
+        iconEl.textContent = '⏳';
+        textEl.textContent = message || 'Connecting...';
+        handleConnectionChange(false);
+        return;
     }
+    if (status === 'paired' || status === 'CONNECTED') {
+        statusEl.classList.add('status-connected');
+        iconEl.textContent = '✅';
+        textEl.textContent = message || 'Connected to spouse!';
+        handleConnectionChange(true);
+        return;
+    }
+    if (status === 'error' || status === 'ERROR') {
+        statusEl.classList.add('status-error');
+        iconEl.textContent = '❌';
+        textEl.textContent = message || 'Connection error';
+        handleConnectionChange(false);
+        return;
+    }
+
+    iconEl.textContent = '📴';
+    textEl.textContent = message || 'Share a link to connect, or paste your spouse\'s link.';
+    handleConnectionChange(false);
 }
