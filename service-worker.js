@@ -1,7 +1,7 @@
 // Service Worker for Baby Names Picker
 // Provides offline functionality and caching for app assets
 
-const CACHE_NAME = 'baby-names-v4';
+const CACHE_NAME = 'baby-names-v7';
 
 const STATIC_ASSETS = [
     '/',
@@ -15,7 +15,7 @@ const STATIC_ASSETS = [
     '/partnerSession.js',
     '/derpTransport.js',
     '/matchesView.js',
-    '/sessionModal.js',
+    '/pairingView.js',
     '/utils.js',
     '/matchAnimation.js',
     '/manifest.json',

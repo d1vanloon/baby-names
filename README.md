@@ -9,7 +9,7 @@ Baby Names Picker is an interactive web app that helps expecting parents find th
 ### Key Features
 
 - **Tinder-Style Swiping**: Swipe right to like names, left to skip
-- **Real-Time Spouse Connection**: Share a pairing link so likes sync over a Tailscale DERP relay
+- **Real-Time Spouse Connection**: Share an invite link so likes sync over a Tailscale DERP relay
 - **Thousands of Names**: Database of popular baby names from 1880-2024 (filtered to names with 5,000+ occurrences)
 - **Personalized Display**: Enter your last name to see how full names look
 - **Match Celebrations**: Beautiful animations when you and your spouse both like the same name
@@ -50,13 +50,12 @@ Then open `http://localhost:8000` in your browser.
 5. Click the heart icon to view your liked names anytime
 
 ### Spouse Mode
-1. Click the link icon (🔗) in the header
-2. Copy the generated share link
-3. Share the link with your spouse
-4. When your spouse opens the link, you'll be connected over a DERP relay
-5. Both of you can swipe independently
-6. When you both like the same name, you'll see a match celebration!
-7. View your mutual matches by clicking the "Matches" button
+1. Tap the link icon in the header
+2. Copy the invite link and send it to your spouse
+3. When they open the link, you are paired over a DERP relay
+4. Both of you can swipe independently
+5. When you both like the same name, you see a match celebration
+6. View mutual matches from the heart-pair icon in the header
 
 ### Data
 
@@ -86,7 +85,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 ├── likesManager.js         # Likes list management
 ├── partnerSession.js       # DERP pairing, likes sync, derived matches
 ├── derpTransport.js        # DERP-over-WebSocket client
-├── sessionModal.js         # Session modal and connection bar UI
+├── pairingView.js          # Pairing sheet and connection bar
 ├── matchesView.js          # Matches screen UI rendering
 ├── matchAnimation.js       # Match celebration animations
 ├── storage.js              # LocalStorage utilities
@@ -99,7 +98,7 @@ The application uses historical baby name data from the U.S. Social Security Adm
 │   ├── nameData.test.js
 │   ├── derpTransport.test.js
 │   ├── partnerSession.test.js
-│   ├── sessionModal.test.js
+│   ├── pairingView.test.js
 │   ├── matchesView.test.js
 │   └── utils.test.js
 └── data/
@@ -131,7 +130,7 @@ Tests cover:
 - Name queue management (`test/nameData.test.js`)
 - DERP transport (`test/derpTransport.test.js`)
 - Partner session pairing and matches (`test/partnerSession.test.js`)
-- Session UI state handling (`test/sessionModal.test.js`)
+- Pairing sheet exclusive states (`test/pairingView.test.js`)
 - Matches UI rendering (`test/matchesView.test.js`)
 - Utility functions (`test/utils.test.js`)
 

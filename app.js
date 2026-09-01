@@ -1,5 +1,5 @@
 /**
- * Baby Names Picker - Main Application
+ * Baby Names Picker - composition root
  */
 
 import {
@@ -40,11 +40,7 @@ import {
     updateMatchesCount
 } from './matchesView.js';
 
-import {
-    initSessionModal,
-    setShareToken,
-    handleStatusChange
-} from './sessionModal.js';
+import { createPairingView } from './pairingView.js';
 
 const elements = {
     loadingScreen: document.getElementById('loading-screen'),
@@ -61,43 +57,26 @@ const elements = {
     likeBtn: document.getElementById('like-btn'),
     resetNamesBtn: document.getElementById('reset-names-btn'),
     likesBtn: document.getElementById('likes-btn'),
-    likesCount: document.getElementById('likes-count'),
-    sessionBtn: document.getElementById('session-btn'),
     matchesBtn: document.getElementById('matches-btn'),
-    matchesCount: document.getElementById('matches-count'),
-    connectionBar: document.getElementById('connection-bar'),
-    connectionStatus: document.getElementById('connection-status'),
-    disconnectBtn: document.getElementById('disconnect-btn'),
     likesList: document.getElementById('likes-list'),
     likesEmpty: document.getElementById('likes-empty'),
     backFromLikesBtn: document.getElementById('back-from-likes-btn'),
     matchesList: document.getElementById('matches-list'),
     matchesEmpty: document.getElementById('matches-empty'),
     backFromMatchesBtn: document.getElementById('back-from-matches-btn'),
-    sessionModal: document.getElementById('session-modal'),
-    closeModalBtn: document.getElementById('close-modal-btn'),
-    sessionCode: document.getElementById('session-code'),
-    copyCodeBtn: document.getElementById('copy-code-btn'),
-    copyLinkBtn: document.getElementById('copy-link-btn'),
-    roomCodeInput: document.getElementById('room-code-input'),
-    joinRoomBtn: document.getElementById('join-room-btn'),
-    sessionStatus: document.getElementById('session-status'),
-    sessionStatusIcon: document.getElementById('session-status-icon'),
-    sessionStatusText: document.getElementById('session-status-text'),
-    sessionConnected: document.getElementById('session-connected'),
-    sessionResetBtn: document.getElementById('session-reset-btn'),
-    modalDisconnectBtn: document.getElementById('modal-disconnect-btn'),
     matchOverlay: document.getElementById('match-overlay'),
     matchName: document.getElementById('match-name'),
     confettiContainer: document.getElementById('confetti-container')
 };
 
 const session = createPartnerSession();
+const screens = ['loading', 'setup', 'swipe', 'likes', 'matches'];
 
 let currentLastName = '';
 let currentMatches = [];
 let partnerLikes = new Set();
 let pendingPairToken = null;
+let pairingView = null;
 
 /**
  * @returns {string|null}
@@ -120,28 +99,6 @@ function stripPairParam() {
 }
 
 /**
- * Accept a pasted token or a full share URL.
- * @param {string} raw
- * @returns {string}
- */
-function normalizePairToken(raw) {
-    const trimmed = (raw || '').trim();
-    if (!trimmed) {
-        return '';
-    }
-    try {
-        const url = new URL(trimmed);
-        const fromQuery = url.searchParams.get('pair');
-        if (fromQuery) {
-            return fromQuery.trim();
-        }
-    } catch {
-        // pasted opaque token
-    }
-    return trimmed;
-}
-
-/**
  * @param {string} token
  * @returns {string}
  */
@@ -154,33 +111,33 @@ function shareUrlForToken(token) {
 }
 
 /**
- * @returns {Promise<string>}
+ * Reveal one screen and render its contents. Callers never render separately.
+ * @param {'loading'|'setup'|'swipe'|'likes'|'matches'} screenName
  */
-async function generateShareLink() {
-    const token = await session.host();
-    return shareUrlForToken(token);
-}
-
-/**
- * @param {string} raw
- * @returns {Promise<void>}
- */
-async function joinFromToken(raw) {
-    const token = normalizePairToken(raw);
-    if (!token) {
-        throw new Error('Missing pairing token');
-    }
-    await session.join(token);
-}
-
-function showScreen(screenName) {
-    const screens = ['loading', 'setup', 'swipe', 'likes', 'matches'];
-    screens.forEach((name) => {
+function navigate(screenName) {
+    for (const name of screens) {
         const el = elements[`${name}Screen`];
         if (el) {
             el.classList.toggle('hidden', name !== screenName);
         }
-    });
+    }
+
+    if (screenName === 'setup') {
+        elements.lastNameInput.focus();
+        return;
+    }
+    if (screenName === 'likes') {
+        renderLikesList();
+        return;
+    }
+    if (screenName === 'matches') {
+        renderMatchesList(currentMatches, currentLastName);
+        return;
+    }
+    if (screenName === 'swipe') {
+        renderCardStack();
+        updateLikesCount();
+    }
 }
 
 function renderCardStack(animate = false) {
@@ -243,22 +200,18 @@ function handleLikesChanged() {
 function setupEventHandlers() {
     elements.startBtn.addEventListener('click', async () => {
         const lastName = elements.lastNameInput.value.trim();
-        if (lastName) {
-            setLastName(lastName);
-            currentLastName = lastName;
-            showScreen('swipe');
-            renderCardStack();
+        if (!lastName) {
+            return;
+        }
+        setLastName(lastName);
+        currentLastName = lastName;
+        navigate('swipe');
 
-            if (pendingPairToken) {
-                const token = pendingPairToken;
-                pendingPairToken = null;
-                try {
-                    await joinFromToken(token);
-                } catch (err) {
-                    console.error('Failed to join:', err);
-                    alert('Failed to join. Please check the link and try again.');
-                }
-            }
+        if (pendingPairToken) {
+            const token = pendingPairToken;
+            pendingPairToken = null;
+            pairingView.open();
+            await pairingView.join(token);
         }
     });
 
@@ -276,23 +229,10 @@ function setupEventHandlers() {
         renderCardStack();
     });
 
-    elements.likesBtn.addEventListener('click', () => {
-        renderLikesList();
-        showScreen('likes');
-    });
-
-    elements.backFromLikesBtn.addEventListener('click', () => {
-        showScreen('swipe');
-    });
-
-    elements.matchesBtn.addEventListener('click', () => {
-        renderMatchesList(currentMatches, currentLastName);
-        showScreen('matches');
-    });
-
-    elements.backFromMatchesBtn.addEventListener('click', () => {
-        showScreen('swipe');
-    });
+    elements.likesBtn.addEventListener('click', () => navigate('likes'));
+    elements.backFromLikesBtn.addEventListener('click', () => navigate('swipe'));
+    elements.matchesBtn.addEventListener('click', () => navigate('matches'));
+    elements.backFromMatchesBtn.addEventListener('click', () => navigate('swipe'));
 }
 
 async function init() {
@@ -305,36 +245,20 @@ async function init() {
     initLikesManager({
         likesList: elements.likesList,
         likesEmpty: elements.likesEmpty,
-        likesCount: elements.likesCount
+        likesCount: document.getElementById('likes-count')
     }, handleLikesChanged);
 
     initMatchesView({
         matchesList: elements.matchesList,
         matchesEmpty: elements.matchesEmpty,
-        matchesCount: elements.matchesCount
+        matchesCount: document.getElementById('matches-count')
     });
 
-    initSessionModal({
-        sessionBtn: elements.sessionBtn,
-        sessionModal: elements.sessionModal,
-        closeModalBtn: elements.closeModalBtn,
-        sessionCode: elements.sessionCode,
-        copyCodeBtn: elements.copyCodeBtn,
-        copyLinkBtn: elements.copyLinkBtn,
-        roomCodeInput: elements.roomCodeInput,
-        joinRoomBtn: elements.joinRoomBtn,
-        sessionStatus: elements.sessionStatus,
-        sessionStatusIcon: elements.sessionStatusIcon,
-        sessionStatusText: elements.sessionStatusText,
-        sessionConnected: elements.sessionConnected,
-        connectionBar: elements.connectionBar,
-        connectionStatus: elements.connectionStatus,
-        disconnectBtn: elements.disconnectBtn,
-        modalDisconnectBtn: elements.modalDisconnectBtn,
-        sessionResetBtn: elements.sessionResetBtn,
-        onJoinSession: joinFromToken,
-        onDisconnect: () => session.disconnect(),
-        onGenerateShareLink: generateShareLink
+    pairingView = createPairingView({
+        host: () => session.host(),
+        join: (token) => session.join(token),
+        disconnect: () => session.disconnect(),
+        makeShareUrl: shareUrlForToken
     });
 
     initMatchAnimation({
@@ -353,11 +277,14 @@ async function init() {
     session.subscribe({
         resume: !pairFromUrl,
         onStatus(status, message) {
-            handleStatusChange(status, message);
+            pairingView.accept({ type: 'status', status, message });
         },
         onMatches(names) {
             currentMatches = names;
             updateMatchesCount(names.length);
+            if (!elements.matchesScreen.classList.contains('hidden')) {
+                renderMatchesList(currentMatches, currentLastName);
+            }
         },
         onPartnerLikes(likes) {
             partnerLikes = likes;
@@ -367,13 +294,10 @@ async function init() {
         },
         onMatch(name) {
             showMatchAnimation(name, currentLastName);
-        },
-        onToken(token) {
-            setShareToken(token);
         }
     });
 
-    showScreen('loading');
+    navigate('loading');
 
     await loadNameData((progress) => {
         elements.progressBar.style.width = `${progress}%`;
@@ -382,20 +306,13 @@ async function init() {
     currentLastName = getLastName();
 
     if (currentLastName) {
-        showScreen('swipe');
-        renderCardStack();
-        updateLikesCount();
-
+        navigate('swipe');
         if (pairFromUrl) {
-            try {
-                await joinFromToken(pairFromUrl);
-            } catch (err) {
-                console.error('Failed to join:', err);
-                alert('Failed to join. Please check the link and try again.');
-            }
+            pairingView.open();
+            await pairingView.join(pairFromUrl);
         }
     } else {
-        showScreen('setup');
+        navigate('setup');
         pendingPairToken = pairFromUrl;
     }
 }

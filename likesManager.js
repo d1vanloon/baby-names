@@ -61,7 +61,7 @@ function createLikeItem(firstName, lastName) {
     item.className = 'name-item';
     item.innerHTML = `
         <span class="name-item-text">${escapeHtml(firstName)} ${escapeHtml(lastName)}</span>
-        <button class="name-item-delete" title="Remove" data-name="${escapeHtml(firstName)}">🗑️</button>
+        <button class="name-item-delete" title="Remove" data-name="${escapeHtml(firstName)}">Remove</button>
     `;
 
     const deleteBtn = item.querySelector('.name-item-delete');

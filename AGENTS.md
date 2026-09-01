@@ -42,7 +42,7 @@ Tests are located in the `test/` directory:
 - `test/nameData.test.js` - Name queue management
 - `test/derpTransport.test.js` - DERP handshake and packet relay
 - `test/partnerSession.test.js` - Pairing, occupancy, matches
-- `test/sessionModal.test.js` - Session/connection UI state handling
+- `test/pairingView.test.js` - Pairing sheet exclusive states
 - `test/matchesView.test.js` - Matches list rendering
 - `test/utils.test.js` - Utility functions (escapeHtml)
 
@@ -141,7 +141,7 @@ function escapeHtml(str) {
 ├── likesManager.js         # Likes list UI management
 ├── partnerSession.js       # DERP pairing and like sync
 ├── derpTransport.js        # DERP-over-WebSocket client
-├── sessionModal.js         # Session modal and connection bar UI management
+├── pairingView.js          # Pairing sheet and connection bar
 ├── matchesView.js          # Matches screen UI management
 ├── matchAnimation.js       # Match celebration UI
 ├── storage.js              # LocalStorage utilities
