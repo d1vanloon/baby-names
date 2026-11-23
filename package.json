@@ -22,7 +22,7 @@
   "homepage": "https://github.com/d1vanloon/baby-names#readme",
   "devDependencies": {
     "jsdom": "^31.0.1",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "dependencies": {
     "tweetnacl": "^1.0.3"
